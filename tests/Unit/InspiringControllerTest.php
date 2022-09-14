@@ -49,11 +49,4 @@ class InspiringServiceTest extends TestCase
         );
     }
 
-    public function testMysql()
-    {
-        self::assertIsObject(
-            new PDO("mysql:host=127.0.0.1;port=3306;dbname=default", 'default', 'secret')
-        );
-    }
-
 }
