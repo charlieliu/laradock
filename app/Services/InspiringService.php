@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+// use App\Models\Quotes;
+use Illuminate\Support\Facades\DB;
+
 /**
  * Class InspiringService
  */
@@ -19,5 +22,14 @@ class InspiringService
         ];
         $key = rand(0, 2);
         return $quotes[$key];
+    }
+
+    /**
+     * @return string
+     */
+    public function list()
+    {
+        return DB::select('select * from `quotes`');
+        // return (new Quotes())->all();
     }
 }

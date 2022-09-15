@@ -15,23 +15,30 @@ use App\Http\Controllers\InspiringController;
 */
 
 Route::get('/', function () {
-    return view('hello_world');
+    return view('content_p', [
+        'active'    => 'hello_world',
+        'title'     => 'Hello world',
+        'content'   => 'Hello World！'
+    ]);
 });
 
 
 Route::get('/hello-world', function () {
-    return view('content', [
-        'title'=>'Hello world',
-        'content'=>'Hello World！'
+    return view('content_p', [
+        'active'    => 'hello_world',
+        'title'     => 'Hello world',
+        'content'   => 'Hello World！'
     ]);
 });
 
 Route::get('/about_us', function () {
-    return view('content', [
-        'title'=>'About Us',
-        'content'=>'嗨！大家好！我們是 Laravel 範例'
+    return view('content_p', [
+        'active'    => 'about_us',
+        'title'     => 'About Us',
+        'content'   => '嗨！大家好！我們是 Laravel 範例'
     ]);
 });
 
 
-Route::get('/inspire', [InspiringController::class, 'inspire']);
+Route::get('/inspire',      [InspiringController::class, 'list']);
+Route::get('/inspire/data', [InspiringController::class, 'inspire']);

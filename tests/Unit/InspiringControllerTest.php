@@ -5,8 +5,8 @@ namespace Tests\Unit;
 use App\Http\Controllers\InspiringController;
 use App\Services\InspiringService;
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\WithFaker;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+// use Illuminate\Foundation\Testing\WithFaker;
+// use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class InspiringServiceTest extends TestCase
 {
@@ -21,21 +21,21 @@ class InspiringServiceTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /**
-     * A basic unit test example.
-     *
-     * @return void
-     */
-    public function testInspire()
-    {
-        $mock = \Mockery::mock(InspiringService::class);
-        $mock->shouldReceive('inspire')->andReturn('名言');
-        $inspiringController = new InspiringController($mock);
-        self::assertEquals(
-            '名言',
-            $inspiringController->inspire()
-        );
-    }
+    // /**
+    //  * A basic unit test example.
+    //  *
+    //  * @return void
+    //  */
+    // public function testInspire()
+    // {
+    //     $mock = \Mockery::mock(InspiringService::class);
+    //     $mock->shouldReceive('inspire')->andReturn('名言');
+    //     $inspiringController = new InspiringController($mock);
+    //     self::assertEquals(
+    //         '名言',
+    //         $inspiringController->inspire()
+    //     );
+    // }
 
     /**
      * A basic unit test example.
@@ -49,4 +49,15 @@ class InspiringServiceTest extends TestCase
         );
     }
 
+    /**
+     * A basic unit test example.
+     *
+     * @return void
+     */
+    public function testList()
+    {
+        self::assertIsArray(
+            (new InspiringService())->list()
+        );
+    }
 }
