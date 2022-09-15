@@ -20,11 +20,17 @@ Route::get('/', function () {
 
 
 Route::get('/hello-world', function () {
-    return view('hello_world', ['title'=>'Hello world']);
+    return view('content', [
+        'title'=>'Hello world',
+        'content'=>'Hello World！'
+    ]);
 });
 
 Route::get('/about_us', function () {
-    return view('about_us', ['title'=>'About Us', 'name'=>'Laravel 範例']);
+    return view('content', [
+        'title'=>'About Us',
+        'content'=>'嗨！大家好！我們是 Laravel 範例'
+    ]);
 });
 
 

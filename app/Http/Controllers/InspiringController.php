@@ -19,6 +19,9 @@ class InspiringController extends Controller
      */
     public function inspire()
     {
-        return $this->service->inspire();
+        return view('content', [
+            'title'=>'Inspire',
+            'content'=>$this->service->inspire()
+        ]);
     }
 }
