@@ -48,5 +48,6 @@ body {
     border-radius: 8px;
 }
 .container .row:hover {
-    background-color: wheat;
+    background-color: rgba(245, 222, 179, 0.2);
 }
+

@@ -11,8 +11,13 @@
     },
     "devDependencies": {
         "axios": "^0.21",
-        "laravel-mix": "^6.0.6",
+        "gulp-newer": "^1.4.0",
+        "laravel-mix": "^6.0.49",
         "lodash": "^4.17.19",
         "postcss": "^8.1.14"
+    },
+    "dependencies": {
+        "bootstrap-icons": "^1.9.1",
+        "gulp": "^3.9.1"
     }
 }
