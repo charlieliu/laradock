@@ -15,7 +15,7 @@ class CreateTelegramBotsTable extends Migration
     {
         Schema::create('telegram_bots', function (Blueprint $table) {
             $table->id();
-            $table->string('username', 255);
+            $table->string('username', 191);
             $table->string('api_key', 255);
             $table->timestamps();
         });

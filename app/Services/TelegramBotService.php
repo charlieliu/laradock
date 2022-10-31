@@ -27,37 +27,16 @@ class TelegramBotService
      * @return array
      */
     public function bots() {
-        // read Mysql bot data
-        $users = [];
-        $response = (array) DB::select('SELECT * FROM `user` WHERE is_bot = 1');
-        foreach ($response as $row) {
-            $tmp = $this->default_member;
-            $row = (array) $row;
-            foreach ($row as $key => $value) {
-                if ( ! is_null($value) || is_bool($value)) {
-                    $tmp[$key] = $value;
-                }
-            }
-            $users[$tmp['username']] = $tmp;
-        }
-
-        // read Mysql bots
         $output = [];
-        $response = (array) DB::select('select * from `telegram_bots`');
+        $sql = 'SELECT `telegram_bots`.*,';
+        $sql .= ' COALESCE(`user`.`id`, 0) AS `user_id`,';
+        $sql .= ' COALESCE(`user`.`first_name`, "") AS `first_name`,';
+        $sql .= ' COALESCE(`user`.`last_name`, "") AS `last_name`';
+        $sql .= ' FROM `default`.`telegram_bots`';
+        $sql .= ' LEFT JOIN `default`.`user` ON `telegram_bots`.username = `user`.username';
+        $response = (array) DB::select($sql);
         foreach ($response as $row) {
             $tmp = (array) $row;
-
-            // set default column
-            foreach (['user_id','first_name','last_name'] as $column) {
-                $tmp[$column] = '';
-            }
-
-            // marge user data
-            if ( ! empty($users[$tmp['username']])) {
-                $tmp['user_id']     = $users[$tmp['username']]['id'];
-                $tmp['first_name']  = $users[$tmp['username']]['first_name'];
-                $tmp['last_name']   = $users[$tmp['username']]['last_name'];
-            }
             $output[] = $tmp;
         }
 
@@ -78,6 +57,39 @@ class TelegramBotService
     }
 
     /**
+     * Select Mysql chat
+     * @return array
+     */
+    public function chat_messages($id) {
+        $output = [];
+        $sql = 'SELECT `message`.*,';
+        $sql .= ' COALESCE(`user`.`id`, 0) AS `user_id`,';
+        $sql .= ' COALESCE(`user`.`is_bot`, 0) AS `is_bot`,';
+        $sql .= ' COALESCE(`user`.`first_name`, "") AS `first_name`,';
+        $sql .= ' COALESCE(`user`.`last_name`, "") AS `last_name`,';
+        $sql .= ' COALESCE(`user`.`username`, "") AS `username`';
+        $sql .= ' FROM `default`.`message`';
+        $sql .= ' LEFT JOIN `default`.`user` ON `user`.`id` = `message`.`user_id`';
+        $sql .= ' WHERE `message`.`chat_id`='.(int) $id;
+        $sql .= ' ORDER BY `message`.`id` ASC';
+        $response = (array) DB::select($sql);
+        foreach ($response as $row) {
+            $tmp = (array) $row;
+            $tmp['from'] = '';
+            if ( ! empty($tmp['first_name']) ||  ! empty($tmp['last_name'])) {
+                $tmp['from'] = $tmp['first_name'].' '.$tmp['last_name'];
+            }
+            if ( ! empty($tmp['username'])) {
+                $tmp['from'] = $tmp['username'];
+            }
+            $tmp['text'] = is_null($tmp['text']) ? '' : $tmp['text'];
+            $tmp['bot'] = $tmp['is_bot'] === 1 ? 'Yes' : 'No';
+            $output[] = $tmp;
+        }
+        return $output;
+    }
+
+    /**
      * Select Mysql user
      * @return array
      */
@@ -93,6 +105,28 @@ class TelegramBotService
                 }
             }
             $tmp['bot'] = $row['is_bot'] === 1 ? 'Yes' : 'No';
+            $output[] = $tmp;
+        }
+        return $output;
+    }
+
+    /**
+     * Select Mysql user messages
+     * @return array
+     */
+    public function user_messages($id) {
+        $output = [];
+        $sql = 'SELECT `message`.*,';
+        $sql .= ' COALESCE(`chat`.`type`, "") AS `chat_type`,';
+        $sql .= ' COALESCE(`chat`.`title`, "") AS `chat_title`';
+        $sql .= ' FROM `default`.`message`';
+        $sql .= ' LEFT JOIN `default`.`chat` ON `chat`.`id` = `message`.`chat_id`';
+        $sql .= ' WHERE `message`.`user_id`='.(int) $id;
+        $sql .= ' ORDER BY `message`.`chat_id` ASC, `message`.`id` ASC';
+        $response = (array) DB::select($sql);
+        foreach ($response as $row) {
+            $tmp = (array) $row;
+            $tmp['text'] = is_null($tmp['text']) ? '' : $tmp['text'];
             $output[] = $tmp;
         }
         return $output;
@@ -129,8 +163,7 @@ class TelegramBotService
         $content = $request->getBody();
         $response = json_decode($content, true);
         if (empty($response['result'])) {
-            print_r($response);
-            exit;
+            return [];
         }
         $this->messages = $this->polls = $this->chats = $this->members = $this->new_chat_members = $this->left_chat_member = [];
         $list = [];
@@ -147,7 +180,7 @@ class TelegramBotService
      */
     public function parse_data($input) {
         $output = [
-            'update_id' => $input['update_id'],
+            'update_id' => isset($input['update_id']) ? $input['update_id'] : 0,
             'type' => '',
             'from' => '--',
             'date' => '----/--/--',
@@ -158,6 +191,19 @@ class TelegramBotService
         if ( ! empty($input['message'])) {
             $output['type'] = 'message';
             $message = $this->parse_message($input);
+            $output['text'] = $message['text'];
+            if ( ! empty($message['date'])) {
+                $output['date'] = date('Y/m/d H:i:s', $message['date']);
+            }
+            if ( ! empty($message['from'])) {
+                $output['from'] = $message['from'];
+            }
+            return $output;
+        }
+
+        if ( ! empty($input['edited_message'])) {
+            $output['type'] = 'edited_message';
+            $message = $this->parse_message($input, 'edited_message');
             $output['text'] = $message['text'];
             if ( ! empty($message['date'])) {
                 $output['date'] = date('Y/m/d H:i:s', $message['date']);
