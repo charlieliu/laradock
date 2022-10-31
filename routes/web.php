@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InspiringController;
+use App\Http\Controllers\TelegramBotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,3 +43,9 @@ Route::get('/about_us', function () {
 
 Route::get('/inspire',      [InspiringController::class, 'list']);
 Route::get('/inspire/data', [InspiringController::class, 'inspire']);
+
+Route::get('/tb',      [TelegramBotController::class, 'bots']);
+Route::get('/tb/chats',      [TelegramBotController::class, 'chats']);
+Route::get('/tb/users',      [TelegramBotController::class, 'users']);
+Route::get('/tb/read/{name}',      [TelegramBotController::class, 'read']);
+Route::get('/tb/run/{name}',      [TelegramBotController::class, 'run']);

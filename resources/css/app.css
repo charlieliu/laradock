@@ -42,12 +42,26 @@ body {
     float: left;
 }
 .container .row {
-    margin-bottom: 2px;;
+    margin-bottom: 4px;
     padding: 8px;
+}
+.container .row_th {
+    /* width: 100%; */
     box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.2), 0 2px 10px 0 rgba(0, 0, 0, 0.2);
     border-radius: 8px;
 }
-.container .row:hover {
+.container .row_td {
+    width: 100%;
+    /* box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.2), 0 2px 10px 0 rgba(0, 0, 0, 0.2); */
+    /* border-radius: 8px; */
+}
+.container .row_td:hover {
     background-color: rgba(245, 222, 179, 0.2);
 }
-
+.content_content {
+    height: calc(100% - 100px);
+    overflow-y: auto;
+}
+.content_header {
+    height: 100px;
+}
