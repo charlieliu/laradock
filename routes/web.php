@@ -46,8 +46,8 @@ Route::get('/inspire/data', [InspiringController::class, 'inspire']);
 
 Route::get('/tb',                       [TelegramBotController::class, 'bots']);
 Route::get('/tb/chats',                 [TelegramBotController::class, 'chats']);
-Route::get('/tb/chat_messages/{id}',    [TelegramBotController::class, 'chat_messages']);
+Route::get('/tb/chat_messages/{id}',    [TelegramBotController::class, 'chatMessages']);
 Route::get('/tb/users',                 [TelegramBotController::class, 'users']);
-Route::get('/tb/user_messages/{id}',    [TelegramBotController::class, 'user_messages']);
+Route::get('/tb/user_messages/{id}',    [TelegramBotController::class, 'userMessages']);
 Route::get('/tb/read/{name}',           [TelegramBotController::class, 'read']);
 Route::get('/tb/run/{name}',            [TelegramBotController::class, 'run']);

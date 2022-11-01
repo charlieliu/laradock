@@ -67,7 +67,7 @@ class TelegramBotController extends Controller
 
         $rs = $this->service->runGetUpdates($BotName);
         $result = isset($rs->result) ? (array) $rs->result : [];
-        $list = $this->service->parse_result($result);
+        $list = $this->service->parseResult($result);
 
         $columns = [
             'update_id' => 'ID',
@@ -125,9 +125,9 @@ class TelegramBotController extends Controller
      * Get chat messages List from Mysql
      * @return string
      */
-    public function chat_messages($id) {
+    public function chatMessages($id) {
         $this->breadcrumbs = ['Telegram Chats'=>'/tb/chats','Messages'=>'/tb/chat_messages/'.$id];
-        $result = $this->service->chat_messages($id);
+        $result = $this->service->chatMessages($id);
         $columns = [
             'id'        => 'ID',
             'date'      => 'Date',
@@ -166,9 +166,9 @@ class TelegramBotController extends Controller
      * Get user List from Mysql
      * @return string
      */
-    public function user_messages($id) {
+    public function userMessages($id) {
         $this->breadcrumbs = ['Telegram Users'=>'/tb/users','Messages'=>'/tb/user_messages/'.$id];
-        $result = $this->service->user_messages($id);
+        $result = $this->service->userMessages($id);
         $columns = ['id'=>'ID','chat_title'=>'Group','date'=>'Date','text'=>'Text'];
         return view('content_list', [
             'active'        => 'tb_users',

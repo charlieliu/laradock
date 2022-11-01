@@ -98,7 +98,7 @@ class TelegramBotService
      * Select Mysql chat
      * @return array
      */
-    public function chat_messages($id) {
+    public function chatMessages($id) {
         $output = [];
         $sql = 'SELECT `message`.*,';
         $sql .= ' COALESCE(`user`.`id`, 0) AS `user_id`,';
@@ -152,7 +152,7 @@ class TelegramBotService
      * Select Mysql user messages
      * @return array
      */
-    public function user_messages($id) {
+    public function userMessages($id) {
         $output = [];
         $sql = 'SELECT `message`.*,';
         $sql .= ' COALESCE(`chat`.`type`, "") AS `chat_type`,';
@@ -220,10 +220,10 @@ class TelegramBotService
             }
 
             $result = ! empty($rs->result) ? (array) $rs->result : [];
-            $this->parse_result($result);
+            $this->parseResult($result);
 
-            $this->messages_event();
-            $this->new_chat_members_event();
+            $this->messagesEvent();
+            $this->newChatMembersEvent();
 
             $time_end = microtime(true);
             $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
@@ -299,11 +299,11 @@ class TelegramBotService
      * @param array $input each row data
      * @return array $output
      */
-    public function parse_result($input) {
+    public function parseResult($input) {
         $this->cleanTmp();
         $output = [];
         foreach ((array)$input as $row) {
-            $tmp = $this->parse_data((array)$row);
+            $tmp = $this->parseData((array)$row);
             $output[] = $tmp;
         }
         return $output;
@@ -314,7 +314,7 @@ class TelegramBotService
      * @param array $input each row data
      * @return array $output
      */
-    public function parse_data($input) {
+    public function parseData($input) {
         $output = [
             'update_id' => isset($input['update_id']) ? $input['update_id'] : 0,
             'chat' => '',
@@ -327,7 +327,7 @@ class TelegramBotService
         // message
         if ( ! empty($input['message'])) {
             $output['type'] = 'message';
-            $message = $this->parse_message($input);
+            $message = $this->parseMessage($input);
             $output['text'] = $message['text'];
             if ( ! empty($message['date'])) {
                 $output['date'] = date('Y/m/d H:i:s', $message['date']);
@@ -344,7 +344,7 @@ class TelegramBotService
 
         if ( ! empty($input['edited_message'])) {
             $output['type'] = 'edited_message';
-            $message = $this->parse_message($input, 'edited_message');
+            $message = $this->parseMessage($input, 'edited_message');
             $output['text'] = $message['text'];
             if ( ! empty($message['date'])) {
                 $output['date'] = date('Y/m/d H:i:s', $message['date']);
@@ -372,7 +372,7 @@ class TelegramBotService
         // channel
         if ( ! empty($input['channel_post'])) {
             $output['type'] = 'channel_post';
-            $message = $this->parse_message($input, 'channel_post');
+            $message = $this->parseMessage($input, 'channel_post');
             if ( ! empty($message['from'])) {
                 $output['from'] = $message['from'];
             }
@@ -383,7 +383,7 @@ class TelegramBotService
         // chat member
         if ( ! empty($input['my_chat_member'])) {
             $output['type'] = 'my_chat_member';
-            $message = $this->parse_my_chat_member($input);
+            $message = $this->parseMyChatMember($input);
             if ( ! empty($message['from'])) {
                 $output['from'] = $message['from'];
             }
@@ -399,7 +399,7 @@ class TelegramBotService
      * @param array $default default output
      * @return array $default
      */
-    public function parse_item($input, $item, $default) {
+    public function parseItem($input, $item, $default) {
         foreach ($default as $key => $value) {
             if (isset($input[$item][$key])) {
                 $default[$key] = $input[$item][$key];
@@ -413,8 +413,8 @@ class TelegramBotService
      * @param string $item parse item name
      * @return array $output
      */
-    public function parse_chat($input, $item = 'chat') {
-        $output = $this->parse_item($input, $item, $this->default_chat);
+    public function parseChat($input, $item = 'chat') {
+        $output = $this->parseItem($input, $item, $this->default_chat);
         if ( ! empty($output['id'])) {
             $this->chats[$output['id']] = $output;
         }
@@ -426,8 +426,8 @@ class TelegramBotService
      * @param string $item parse item name
      * @return array $output
      */
-    public function parse_member($input, $item = 'from') {
-        $output = $this->parse_item($input, $item, $this->default_member);
+    public function parseMember($input, $item = 'from') {
+        $output = $this->parseItem($input, $item, $this->default_member);
         if ( ! empty($output['id'])) {
             $this->members[$output['id']] = $output;
         }
@@ -439,7 +439,7 @@ class TelegramBotService
      * @param int $chat_id
      * @return array
      */
-    public function parse_chat_member($input, $chat_id = 0) {
+    public function parseChatMember($input, $chat_id = 0) {
         $output = $this->default_member;
         $output['chat_id'] = $chat_id;
         $output['name'] = '';
@@ -462,12 +462,12 @@ class TelegramBotService
      * @param string $item parse item name
      * @return array
      */
-    public function parse_message($input, $type = 'message') {
+    public function parseMessage($input, $type = 'message') {
         if (empty($input[$type])) {
             echo __METHOD__.' LINE : '.__LINE__.' '.json_encode($input);exit;
         }
-        $member = $this->parse_member($input[$type]);
-        $chat = $this->parse_chat($input[$type], 'chat');
+        $member = $this->parseMember($input[$type]);
+        $chat = $this->parseChat($input[$type], 'chat');
         $output = [
             'id' => $input[$type]['message_id'],
             'chat_id' => $chat['id'],
@@ -496,17 +496,17 @@ class TelegramBotService
             $this->parse_chat($input[$type], 'sender_chat');
         }
         if ( ! empty($input[$type]['old_chat_member'])) {
-            $chat_member = $this->parse_chat_member($input[$type]['old_chat_member'], $chat['id']);
+            $chat_member = $this->parseChatMember($input[$type]['old_chat_member'], $chat['id']);
         }
         if ( ! empty($input[$type]['new_chat_member'])) {
-            $chat_member = $this->parse_chat_member($input[$type]['new_chat_member'], $chat['id']);
+            $chat_member = $this->parseChatMember($input[$type]['new_chat_member'], $chat['id']);
             if ( ! empty($chat_member['id'])) {
                 $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
             }
         }
         if ( ! empty($input[$type]['new_chat_members'])) {
             foreach ($input[$type]['new_chat_members'] as $new_chat_member) {
-                $chat_member = $this->parse_chat_member($new_chat_member, $chat['id']);
+                $chat_member = $this->parseChatMember($new_chat_member, $chat['id']);
                 if ( ! empty($chat_member['id'])) {
                     $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
                 }
@@ -525,7 +525,7 @@ class TelegramBotService
         }
         $this->messages[$output['id']] = $output;
         if ( ! empty($input[$type]['reply_to_message'])) {
-            $reply_to_message = $this->parse_message($input[$type], 'reply_to_message');
+            $reply_to_message = $this->parseMessage($input[$type], 'reply_to_message');
             $output['text'] = $reply_to_message['text'].' => '.$output['text'];
         }
         return $output;
@@ -536,9 +536,9 @@ class TelegramBotService
      * @param string $type parse item name
      * @return array
      */
-    public function parse_my_chat_member($input, $type = 'my_chat_member') {
-        $member = $this->parse_member($input[$type]);
-        $chat = $this->parse_chat($input[$type], 'chat');
+    public function parseMyChatMember($input, $type = 'my_chat_member') {
+        $member = $this->parseMember($input[$type]);
+        $chat = $this->parseChat($input[$type], 'chat');
         $output = [
             'id' => '',
             'chat_id' => $chat['id'],
@@ -560,20 +560,20 @@ class TelegramBotService
             $output['text'] = $input[$type]['text'];
         }
         if ( ! empty($input[$type]['sender_chat'])) {
-            $this->parse_chat($input[$type], 'sender_chat');
+            $this->parseChat($input[$type], 'sender_chat');
         }
         if ( ! empty($input[$type]['old_chat_member'])) {
-            $chat_member = $this->parse_chat_member($input[$type]['old_chat_member'], $chat['id']);
+            $chat_member = $this->parseChatMember($input[$type]['old_chat_member'], $chat['id']);
         }
         if ( ! empty($input[$type]['new_chat_member'])) {
-            $chat_member = $this->parse_chat_member($input[$type]['new_chat_member'], $chat['id']);
+            $chat_member = $this->parseChatMember($input[$type]['new_chat_member'], $chat['id']);
             if ( ! empty($chat_member['id'])) {
                 $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
             }
         }
         if ( ! empty($input[$type]['new_chat_members'])) {
             foreach ($input[$type]['new_chat_members'] as $new_chat_member) {
-                $chat_member = $this->parse_chat_member($new_chat_member, $chat['id']);
+                $chat_member = $this->parseChatMember($new_chat_member, $chat['id']);
                 if ( ! empty($chat_member['id'])) {
                     $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
                 }
@@ -591,7 +591,7 @@ class TelegramBotService
             }
         }
         if ( ! empty($input[$type]['reply_to_message'])) {
-            $reply_to_message = $this->parse_message($input[$type], 'reply_to_message');
+            $reply_to_message = $this->parseMessage($input[$type], 'reply_to_message');
             $output['text'] = $reply_to_message['text'].' => '.$output['text'];
         }
         return $output;
@@ -600,7 +600,7 @@ class TelegramBotService
     /**
      * messages event
      */
-    public function messages_event() {
+    public function messagesEvent() {
         foreach ($this->messages as $message) {
             // echo 'message : ' . json_encode($message) . PHP_EOL;
             if ($this->userID == $message['member_id']) {
@@ -630,7 +630,7 @@ class TelegramBotService
     /**
      * new chat members event
      */
-    public function new_chat_members_event() {
+    public function newChatMembersEvent() {
         foreach ($this->new_chat_members as $chat_id => $chat_members) {
             foreach ($chat_members as $member) {
                 echo __METHOD__.' $member : ' . json_encode($member) . PHP_EOL;
