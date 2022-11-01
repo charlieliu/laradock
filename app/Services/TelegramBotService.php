@@ -2,6 +2,10 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+use Longman\TelegramBot\Request;
+use Longman\TelegramBot\Telegram;
 
 /**
  * Class TelegramBotService
@@ -23,6 +27,17 @@ class TelegramBotService
         'language_code' => ''
     ];
 
+    public $messages = [];
+    public $polls = [];
+    public $chats = [];
+    public $members = [];
+    public $new_chat_members = [];
+    public $left_chat_member = [];
+    public $BotName = '';
+    public $ApiKey = '';
+
+    private $telegram;
+
     /**
      * @return array
      */
@@ -37,7 +52,7 @@ class TelegramBotService
         $response = (array) DB::select($sql);
         foreach ($response as $row) {
             $tmp = (array) $row;
-            $output[] = $tmp;
+            $output[$tmp['username']] = $tmp;
         }
 
         return $output;
@@ -132,12 +147,76 @@ class TelegramBotService
         return $output;
     }
 
+    public function logInfo($method = '', $info = '') {
+        Log::debug(date('Y-m-d H:i:s') . ' ' .$method. ' '.$info);
+    }
+
+    /**
+     * get Bot token
+     * @param string $name Bot username
+     * @return string $ApiKey Bot token
+     */
+    public function getToken($BotName) {
+        $bots = $this->bots();
+        if ( ! isset($bots[$BotName]) || ! isset($bots[$BotName]['api_key'])) {
+            echo __METHOD__.' Bot ['.$BotName.'] not exist';
+            exit;
+        }
+        $this->BotName = $BotName;
+        $this->ApiKey = $bots[$BotName]['api_key'];
+        return $this->ApiKey;
+    }
+
+    /**
+     * getUpdates and write to Mysql
+     * @param string $name Bot username
+     * @return string
+     */
+    public function runGetUpdates($BotName) {
+        $time_start = microtime(true);
+        $this->logInfo(__METHOD__, ' START');
+
+        $ApiKey = $this->getToken($BotName);
+
+        try {
+            // Create Telegram API object
+            $this->telegram = new \Longman\TelegramBot\Telegram($ApiKey, $BotName);
+
+            // Enable MySQL
+            $this->telegram->enableMySql([
+                'host'     => env('DB_HOST'),
+                'port'     => env('DB_PORT'),
+                'user'     => env('DB_USERNAME'),
+                'database' => env('DB_DATABASE'),
+                'password' => env('DB_PASSWORD')
+            ])->useGetUpdatesWithoutDatabase(false);
+            $rs = $this->telegram->handleGetUpdates();
+
+            $time_end = microtime(true);
+            $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
+            return $rs;
+        } catch (\Longman\TelegramBot\Exception\TelegramException $e) {
+            $this->logInfo(__METHOD__, 'ERROR '. json_encode($e->getMessage()));
+        }
+    }
+
+    public function sendMessage($data = []) {
+        $time_start = microtime(true);
+        $this->logInfo(__METHOD__, ' START');
+
+        $rs = Request::sendMessage($data);
+
+        $time_end = microtime(true);
+        $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
+        return $rs;
+    }
+
     /**
      * cURL TelegramBot API getUpdates
      * @param array $name Bot's username
      * @return array
      */
-    public function getUpdates($name) {
+    public function readGetUpdates($name) {
         $ApiKey = '';
 
         // Check Bot's username
@@ -165,12 +244,35 @@ class TelegramBotService
         if (empty($response['result'])) {
             return [];
         }
-        $this->messages = $this->polls = $this->chats = $this->members = $this->new_chat_members = $this->left_chat_member = [];
+        $this->cleanTmp();
         $list = [];
         foreach ($response['result'] as $row) {
             $list[] = $this->parse_data($row);
         }
         return $list;
+    }
+
+    public function cleanTmp() {
+        $this->messages = [];
+        $this->polls = [];
+        $this->chats = [];
+        $this->members = [];
+        $this->new_chat_members = [];
+        $this->left_chat_member = [];
+    }
+
+    /**
+     * Parse Data for view
+     * @param array $input each row data
+     * @return array $output
+     */
+    public function parse_result($input) {
+        $this->cleanTmp();
+        $output = [];
+        foreach ((array)$input as $row) {
+            $output[] = $this->parse_data((array)$row);
+        }
+        return $output;
     }
 
     /**
@@ -181,6 +283,7 @@ class TelegramBotService
     public function parse_data($input) {
         $output = [
             'update_id' => isset($input['update_id']) ? $input['update_id'] : 0,
+            'chat' => '',
             'type' => '',
             'from' => '--',
             'date' => '----/--/--',
@@ -197,6 +300,9 @@ class TelegramBotService
             }
             if ( ! empty($message['from'])) {
                 $output['from'] = $message['from'];
+            }
+            if ( ! empty($message['chat_name'])) {
+                $output['chat'] = $message['chat_name'];
             }
             return $output;
         }
@@ -315,11 +421,15 @@ class TelegramBotService
         $output = [
             'id' => $input[$type]['message_id'],
             'chat_id' => $chat['id'],
+            'chat_name' => '',
             'member_id' => $member['id'],
             'from' => '--',
             'date' => '----/--/--',
             'text' => ''
         ];
+        if (isset($this->chats[$chat['id']]['title'])) {
+            $output['chat_name'] = $this->chats[$chat['id']]['title'];
+        }
         if ( ! empty($member['first_name']) || ! empty($member['last_name'])) {
             $output['from'] = $member['first_name'].' '.$member['last_name'];
         }

@@ -56,11 +56,10 @@ class TelegramBotController extends Controller
         $ApiKey = '';
 
         // check Bot exist
-        foreach ($this->service->bots() as $row) {
-            if ($row['username'] === $name) {
-                $BotName = $row['username'];
-                $ApiKey = $row['api_key'];
-            }
+        $bots = $this->service->bots();
+        if (isset($bots[$name])) {
+            $BotName = $bots[$name]['username'];
+            $ApiKey = $bots[$name]['api_key'];
         }
 
         // check Bot token
@@ -69,45 +68,24 @@ class TelegramBotController extends Controller
             exit;
         }
 
-        try {
-            // Create Telegram API object
-            $telegram = new \Longman\TelegramBot\Telegram($ApiKey, $BotName);
+        $rs = $this->service->runGetUpdates($BotName);
+        $result = isset($rs->result) ? (array) $rs->result : [];
+        $list = $this->service->parse_result($result);
 
-            // Enable MySQL
-            $telegram->enableMySql([
-                'host'     => env('DB_HOST'),
-                'port'     => env('DB_PORT'),
-                'user'     => env('DB_USERNAME'),
-                'database' => env('DB_DATABASE'),
-                'password' => env('DB_PASSWORD')
-            ]);
-
-            // Handle telegram getUpdates request
-            $telegram->useGetUpdatesWithoutDatabase(false);
-            $rs = $telegram->handleGetUpdates();
-
-            $columns = [
-                'update_id' => 'ID',
-                'from'      => 'From',
-                'type'      => 'Type',
-                'date'      => 'Date',
-                'text'      => 'Text'
-            ];
-            $result = ! empty($rs->result) ? (array) $rs->result : [];
-            $list = [];
-            foreach ($result as $row) {
-                $list[] = $this->service->parse_data((array)$row);
-            }
-            return view('content_list', [
-                'active'    => 'tb',
-                'title'     => 'Run Bot - '.$name,
-                'breadcrumbs'   => $this->breadcrumbs,
-                'columns'   => $columns,
-                'list'      => $this->parse_list($list, $columns)
-            ]);
-        } catch (\Longman\TelegramBot\Exception\TelegramException $e) {
-            echo $e->getMessage();
-        }
+        $columns = [
+            'update_id' => 'ID',
+            'from'      => 'From',
+            'type'      => 'Type',
+            'date'      => 'Date',
+            'text'      => 'Text'
+        ];
+        return view('content_list', [
+            'active'    => 'tb',
+            'title'     => 'Run Bot - '.$name,
+            'breadcrumbs'   => $this->breadcrumbs,
+            'columns'   => $columns,
+            'list'      => $this->parse_list($list, $columns)
+        ]);
     }
 
     /**
@@ -117,7 +95,7 @@ class TelegramBotController extends Controller
      */
     public function read($name) {
         $this->breadcrumbs = ['Telegram Bots'=>'/tb',$name.' Reading'=>'/tb/read/'.$name];
-        $result = $this->service->getUpdates($name);
+        $result = $this->service->readGetUpdates($name);
         $columns = ['update_id'=>'ID','from'=>'From','type'=>'Type','date'=>'Date','text'=>'Text'];
         return view('content_list', [
             'active'    => 'tb_bots',
