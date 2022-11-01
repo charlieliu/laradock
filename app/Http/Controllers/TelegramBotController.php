@@ -4,9 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Services\TelegramBotService;
 
-use Longman\TelegramBot\Request;
-use Longman\TelegramBot\Telegram;
-
 class TelegramBotController extends Controller
 {
     public $breadcrumbs = [];

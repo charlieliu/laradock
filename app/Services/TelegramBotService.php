@@ -64,9 +64,31 @@ class TelegramBotService
      */
     public function chats() {
         $output = [];
-        $response = (array) DB::select('select * from `chat`');
+        $userIDs = [];
+        $response = (array) DB::select('SELECT * FROM `chat`');
         foreach ($response as $row) {
-            $output[] = (array) $row;
+            $tmp = (array) $row;
+            if (is_null($tmp['title'])) {
+                $tmp['title'] =  '';
+                $userIDs[] = $tmp['id'];
+            }
+            $output[$tmp['id']] = $tmp;
+        }
+        if ( ! empty($userIDs)) {
+            $response = (array) DB::select('SELECT * FROM `user` WHERE id IN('.implode(',',$userIDs).')');
+            foreach ($response as $row) {
+                $tmp = (array) $row;
+                $title = '';
+                if ( ! empty($tmp['first_name']) ||  ! empty($tmp['last_name'])) {
+                    $title = $tmp['first_name'].' '.$tmp['last_name'];
+                }
+                if ( ! empty($tmp['username'])) {
+                    $title = $tmp['username'];
+                }
+                if ( ! empty($title)) {
+                    $output[$tmp['id']]['title'] = $title;
+                }
+            }
         }
         return $output;
     }
@@ -538,4 +560,6 @@ class TelegramBotService
         }
         return $output;
     }
+
+    // public function checkIsu
 }
