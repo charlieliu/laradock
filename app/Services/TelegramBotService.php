@@ -35,6 +35,7 @@ class TelegramBotService
     public $left_chat_member = [];
     public $BotName = '';
     public $ApiKey = '';
+    public $userID = 0;
 
     private $telegram;
 
@@ -186,6 +187,7 @@ class TelegramBotService
         }
         $this->BotName = $BotName;
         $this->ApiKey = $bots[$BotName]['api_key'];
+        $this->userID = is_null($bots[$BotName]['user_id']) ? 0 : $bots[$BotName]['user_id'];
         return $this->ApiKey;
     }
 
@@ -213,6 +215,15 @@ class TelegramBotService
                 'password' => env('DB_PASSWORD')
             ])->useGetUpdatesWithoutDatabase(false);
             $rs = $this->telegram->handleGetUpdates();
+            if ( ! isset($rs->ok) || $rs->ok !== true) {
+                return false;
+            }
+
+            $result = ! empty($rs->result) ? (array) $rs->result : [];
+            $this->parse_result($result);
+
+            $this->messages_event();
+            $this->new_chat_members_event();
 
             $time_end = microtime(true);
             $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
@@ -292,7 +303,8 @@ class TelegramBotService
         $this->cleanTmp();
         $output = [];
         foreach ((array)$input as $row) {
-            $output[] = $this->parse_data((array)$row);
+            $tmp = $this->parse_data((array)$row);
+            $output[] = $tmp;
         }
         return $output;
     }
@@ -326,6 +338,7 @@ class TelegramBotService
             if ( ! empty($message['chat_name'])) {
                 $output['chat'] = $message['chat_name'];
             }
+            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
             return $output;
         }
 
@@ -339,6 +352,7 @@ class TelegramBotService
             if ( ! empty($message['from'])) {
                 $output['from'] = $message['from'];
             }
+            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
             return $output;
         }
 
@@ -351,6 +365,7 @@ class TelegramBotService
             if ( ! empty($poll['from'])) {
                 $output['from'] = $poll['from'];
             }
+            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
             return $output;
         }
 
@@ -361,6 +376,7 @@ class TelegramBotService
             if ( ! empty($message['from'])) {
                 $output['from'] = $message['from'];
             }
+            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
             return $output;
         }
 
@@ -371,6 +387,7 @@ class TelegramBotService
             if ( ! empty($message['from'])) {
                 $output['from'] = $message['from'];
             }
+            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
             return $output;
         }
         echo __METHOD__.' LINE : '.__LINE__.' '.json_encode($input);exit;
@@ -419,14 +436,25 @@ class TelegramBotService
 
     /**
      * @param array $input
-     * @param string $item parse item name
+     * @param int $chat_id
      * @return array
      */
-    public function parse_chat_member($input) {
-        $member = $this->parse_member($input, 'user');
-        $input['id'] = $member['id'];
-        $input['is_bot'] = $member['is_bot'];
-        return $input;
+    public function parse_chat_member($input, $chat_id = 0) {
+        $output = $this->default_member;
+        $output['chat_id'] = $chat_id;
+        $output['name'] = '';
+        foreach (array_keys($this->default_member) as $key) {
+            if (isset($input[$key])) {
+                $output[$key] = $input[$key];
+            }
+        }
+        if ( ! empty($output['first_name'])) {
+            $output['name'] = $output['first_name'];
+        }
+        if (empty($output['name']) && ! empty($output['username'])) {
+            $output['name'] = '@'.$output['username'];
+        }
+        return $output;
     }
 
     /**
@@ -472,12 +500,16 @@ class TelegramBotService
         }
         if ( ! empty($input[$type]['new_chat_member'])) {
             $chat_member = $this->parse_chat_member($input[$type]['new_chat_member'], $chat['id']);
-            $this->new_chat_members[$chat_member['id']] = $chat_member;
+            if ( ! empty($chat_member['id'])) {
+                $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
+            }
         }
         if ( ! empty($input[$type]['new_chat_members'])) {
             foreach ($input[$type]['new_chat_members'] as $new_chat_member) {
                 $chat_member = $this->parse_chat_member($new_chat_member, $chat['id']);
-                $this->new_chat_members[$new_chat_member['id']] = $new_chat_member;
+                if ( ! empty($chat_member['id'])) {
+                    $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
+                }
             }
             $output['text'] .= ' Add '.$new_chat_member['first_name'];
         }
@@ -535,19 +567,23 @@ class TelegramBotService
         }
         if ( ! empty($input[$type]['new_chat_member'])) {
             $chat_member = $this->parse_chat_member($input[$type]['new_chat_member'], $chat['id']);
-            $this->new_chat_members[$chat_member['id']] = $chat_member;
+            if ( ! empty($chat_member['id'])) {
+                $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
+            }
         }
         if ( ! empty($input[$type]['new_chat_members'])) {
             foreach ($input[$type]['new_chat_members'] as $new_chat_member) {
                 $chat_member = $this->parse_chat_member($new_chat_member, $chat['id']);
-                $this->new_chat_members[$new_chat_member['id']] = $new_chat_member;
+                if ( ! empty($chat_member['id'])) {
+                    $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
+                }
             }
-            $output['text'] .= ' Add '.$new_chat_member['first_name'];
+            $output['text'] .= ' Add new_chat_member';
         }
         if ( ! empty($input[$type]['left_chat_member'])) {
-            $left_chat_member = $input[$type]['left_chat_member'];
-            $this->left_chat_members[$left_chat_member['id']] = $left_chat_member;
-            $output['text'] .= ' Remove '.$left_chat_member['first_name'];
+            $chat_member = $input[$type]['left_chat_member'];
+            $this->left_chat_members[$chat_member['id']] = $chat_member;
+            $output['text'] .= ' Remove '.$chat_member['first_name'];
         }
         if ( ! empty($input[$type]['new_chat_photo'])) {
             foreach ($input[$type]['new_chat_photo'] as $photo) {
@@ -561,5 +597,99 @@ class TelegramBotService
         return $output;
     }
 
-    // public function checkIsu
+    /**
+     * messages event
+     */
+    public function messages_event() {
+        foreach ($this->messages as $message) {
+            // echo 'message : ' . json_encode($message) . PHP_EOL;
+            if ($this->userID == $message['member_id']) {
+                continue; // message from bot self
+            }
+            if ($message['chat_id'] == $message['member_id']) {
+                // message from bot self
+                continue;
+            }
+            if ( ! empty($message['text']) &&  ! empty($message['chat_id'])) {
+                if (strpos(strtolower($message['text']) , 'hi') !== false ) {
+                    $sendResult = $this->sendMessage([
+                        'chat_id' => $message['chat_id'],
+                        'text' => 'Hi I am bot.'
+                    ]);
+                    echo '$sendResult : ' . json_encode($sendResult) . PHP_EOL;
+                    if ($sendResult->isOk()) {
+                        $this->logInfo(__METHOD__, 'Message sent succesfully to: ' . $message['chat_id']);
+                    } else {
+                        $this->logInfo(__METHOD__, 'Sorry message not sent to: ' . $message['chat_id']);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * new chat members event
+     */
+    public function new_chat_members_event() {
+        foreach ($this->new_chat_members as $chat_id => $chat_members) {
+            foreach ($chat_members as $member) {
+                echo __METHOD__.' $member : ' . json_encode($member) . PHP_EOL;
+                if (empty($chat_id) || empty($member['id'])) {
+                    continue;
+                }
+
+                // set permissions
+                $this->restrictChatMember($member, true);
+
+                $data = [
+                    'chat_id' => $chat_id,
+                    'text' => '['.$member['name'].'](tg://user?id='.$member['id'].') 歡迎加入本群組，請點擊下方按鈕以獲的發言權限',
+                    'parse_mode' => 'MarkdownV2',
+                    'reply_markup' => json_encode([
+                        'keyboard' => [[['text'=>'👉🏻解禁我👈🏻']]],
+                        'resize_keyboard' => true,
+                        'one_time_keyboard' => true,
+                        'input_field_placeholder' => '👉🏻解禁我👈🏻',
+                        'selective' => true,
+                    ])
+                ];
+                $sendResult = $this->sendMessage($data);
+                if ($sendResult->isOk()) {
+                    $this->logInfo(__METHOD__, 'Message sent succesfully to: ' . $chat_id);
+                } else {
+                    $this->logInfo(__METHOD__, 'Sorry message not sent to: ' . $chat_id);
+                }
+
+            }
+        }
+    }
+
+    /**
+     * set chat members permissions
+     */
+    public function restrictChatMember($member, $enabled = false) {
+        if (empty($member['id']) || empty($member['chat_id'])) {
+            return false;
+        }
+        $data = [
+            'chat_id' => $member['chat_id'],
+            'user_id' => $member['id'],
+            'permissions' => json_encode([
+                'can_send_messages' => $enabled,
+                'can_send_media_messages' => false,
+                'can_send_polls' => $enabled,
+                'can_send_other_messages' => false,
+                'can_add_web_page_previews' => false,
+                'can_change_info' => false,
+                'can_invite_users' => false,
+                'can_pin_messages' => false
+            ])
+        ];
+        $sendResult = Request::send('restrictChatMember', $data);
+        if ($sendResult->isOk()) {
+            $this->logInfo(__METHOD__, 'Message sent succesfully to: ' . $member['chat_id']);
+        } else {
+            $this->logInfo(__METHOD__, 'Sorry message not sent to: ' . $member['chat_id']);
+        }
+    }
 }
