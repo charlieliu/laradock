@@ -39,6 +39,14 @@ class TelegramBotService
 
     private $telegram;
 
+    public function logInfo($method = '', $info = '', $echo = false) {
+        $log = date('Y-m-d H:i:s') . ' ' .$method. ' '.$info;
+        Log::debug($log);
+        if ( ! empty($echo)) {
+            echo $log . PHP_EOL ;
+        }
+    }
+
     /**
      * @return array
      */
@@ -170,10 +178,6 @@ class TelegramBotService
         return $output;
     }
 
-    public function logInfo($method = '', $info = '') {
-        Log::debug(date('Y-m-d H:i:s') . ' ' .$method. ' '.$info);
-    }
-
     /**
      * get Bot token
      * @param string $name Bot username
@@ -182,7 +186,7 @@ class TelegramBotService
     public function getToken($BotName) {
         $bots = $this->bots();
         if ( ! isset($bots[$BotName]) || ! isset($bots[$BotName]['api_key'])) {
-            echo __METHOD__.' Bot ['.$BotName.'] not exist';
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' Bot ['.$BotName.'] not exist');
             exit;
         }
         $this->BotName = $BotName;
@@ -198,7 +202,7 @@ class TelegramBotService
      */
     public function runGetUpdates($BotName) {
         $time_start = microtime(true);
-        $this->logInfo(__METHOD__, ' START');
+        $this->logInfo(__METHOD__, 'START', true);
 
         $ApiKey = $this->getToken($BotName);
 
@@ -219,23 +223,17 @@ class TelegramBotService
                 return false;
             }
 
-            $result = ! empty($rs->result) ? (array) $rs->result : [];
-            $this->parseResult($result);
-
-            $this->messagesEvent();
-            $this->newChatMembersEvent();
-
             $time_end = microtime(true);
-            $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
+            $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s', true);
             return $rs;
         } catch (\Longman\TelegramBot\Exception\TelegramException $e) {
-            $this->logInfo(__METHOD__, 'ERROR '. json_encode($e->getMessage()));
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' ERROR '. json_encode($e->getMessage()), true);
         }
     }
 
     public function sendMessage($data = []) {
         $time_start = microtime(true);
-        $this->logInfo(__METHOD__, ' START');
+        $this->logInfo(__METHOD__, 'START');
 
         $rs = Request::sendMessage($data);
 
@@ -259,7 +257,7 @@ class TelegramBotService
             }
         }
         if (empty($ApiKey)) {
-            echo 'Bot ['.$name.'] not exist';
+            $this->logInfo(__METHOD__, 'Bot ['.$name.'] not exist');
             exit;
         }
 
@@ -269,7 +267,7 @@ class TelegramBotService
         $request = $client->request('GET', $url);
         $statusCode = $request->getStatusCode();
         if ($statusCode != 200) {
-            echo 'HTTP CODE : '.$statusCode;
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' HTTP CODE : '.$statusCode);
             exit;
         }
         $content = $request->getBody();
@@ -280,7 +278,7 @@ class TelegramBotService
         $this->cleanTmp();
         $list = [];
         foreach ($response['result'] as $row) {
-            $list[] = $this->parse_data($row);
+            $list[] = $this->parseData($row);
         }
         return $list;
     }
@@ -338,7 +336,7 @@ class TelegramBotService
             if ( ! empty($message['chat_name'])) {
                 $output['chat'] = $message['chat_name'];
             }
-            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
             return $output;
         }
 
@@ -352,7 +350,7 @@ class TelegramBotService
             if ( ! empty($message['from'])) {
                 $output['from'] = $message['from'];
             }
-            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
             return $output;
         }
 
@@ -365,7 +363,7 @@ class TelegramBotService
             if ( ! empty($poll['from'])) {
                 $output['from'] = $poll['from'];
             }
-            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
             return $output;
         }
 
@@ -376,7 +374,7 @@ class TelegramBotService
             if ( ! empty($message['from'])) {
                 $output['from'] = $message['from'];
             }
-            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
             return $output;
         }
 
@@ -387,10 +385,11 @@ class TelegramBotService
             if ( ! empty($message['from'])) {
                 $output['from'] = $message['from'];
             }
-            echo __METHOD__.' output : ' . json_encode($output) . PHP_EOL;
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
             return $output;
         }
-        echo __METHOD__.' LINE : '.__LINE__.' '.json_encode($input);exit;
+        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), true);
+        exit;
     }
 
     /**
@@ -595,73 +594,6 @@ class TelegramBotService
             $output['text'] = $reply_to_message['text'].' => '.$output['text'];
         }
         return $output;
-    }
-
-    /**
-     * messages event
-     */
-    public function messagesEvent() {
-        foreach ($this->messages as $message) {
-            // echo 'message : ' . json_encode($message) . PHP_EOL;
-            if ($this->userID == $message['member_id']) {
-                continue; // message from bot self
-            }
-            if ($message['chat_id'] == $message['member_id']) {
-                // message from bot self
-                continue;
-            }
-            if ( ! empty($message['text']) &&  ! empty($message['chat_id'])) {
-                if (strpos(strtolower($message['text']) , 'hi') !== false ) {
-                    $sendResult = $this->sendMessage([
-                        'chat_id' => $message['chat_id'],
-                        'text' => 'Hi I am bot.'
-                    ]);
-                    echo '$sendResult : ' . json_encode($sendResult) . PHP_EOL;
-                    if ($sendResult->isOk()) {
-                        $this->logInfo(__METHOD__, 'Message sent succesfully to: ' . $message['chat_id']);
-                    } else {
-                        $this->logInfo(__METHOD__, 'Sorry message not sent to: ' . $message['chat_id']);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * new chat members event
-     */
-    public function newChatMembersEvent() {
-        foreach ($this->new_chat_members as $chat_id => $chat_members) {
-            foreach ($chat_members as $member) {
-                echo __METHOD__.' $member : ' . json_encode($member) . PHP_EOL;
-                if (empty($chat_id) || empty($member['id'])) {
-                    continue;
-                }
-
-                // set permissions
-                $this->restrictChatMember($member, true);
-
-                $data = [
-                    'chat_id' => $chat_id,
-                    'text' => '['.$member['name'].'](tg://user?id='.$member['id'].') 歡迎加入本群組，請點擊下方按鈕以獲的發言權限',
-                    'parse_mode' => 'MarkdownV2',
-                    'reply_markup' => json_encode([
-                        'keyboard' => [[['text'=>'👉🏻解禁我👈🏻']]],
-                        'resize_keyboard' => true,
-                        'one_time_keyboard' => true,
-                        'input_field_placeholder' => '👉🏻解禁我👈🏻',
-                        'selective' => true,
-                    ])
-                ];
-                $sendResult = $this->sendMessage($data);
-                if ($sendResult->isOk()) {
-                    $this->logInfo(__METHOD__, 'Message sent succesfully to: ' . $chat_id);
-                } else {
-                    $this->logInfo(__METHOD__, 'Sorry message not sent to: ' . $chat_id);
-                }
-
-            }
-        }
     }
 
     /**

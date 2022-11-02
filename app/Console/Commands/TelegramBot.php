@@ -3,12 +3,17 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Foundation\Bus\DispatchesJobs;
 
-use Illuminate\Support\Facades\Log;
 use App\Services\TelegramBotService;
+
+use App\Jobs\TelegramBotMessageEvent;
+use App\Jobs\TelegramBotNewChatMembersEvent;
 
 class TelegramBot extends Command
 {
+    use DispatchesJobs;
+
     /**
      * The name and signature of the console command.
      *
@@ -30,10 +35,10 @@ class TelegramBot extends Command
      *
      * @return void
      */
-    public function __construct(TelegramBotService $telegramBotService)
+    public function __construct()
     {
         parent::__construct();
-        $this->service = $telegramBotService;
+        $this->service = new TelegramBotService;
     }
 
     /**
@@ -44,28 +49,41 @@ class TelegramBot extends Command
     public function handle()
     {
         $BotName = 'CharlieLiu_bot';
-        $bots = $this->service->bots();
-        if (isset($bots[$BotName])) {
-            $ApiKey = $bots[$BotName]['api_key'];
-        }
-
-        // check Bot token
-        if (empty($ApiKey)) {
-            echo 'Bot ['.$BotName.'] not exist';
-            exit;
-        }
-
-        echo 'Bot ['.$BotName.']' . PHP_EOL;
+        $this->service->getToken($BotName);
+        $this->service->logInfo(__METHOD__, 'Bot ['.$BotName.'] START', true);
+        $done = 0;
         $ok = true;
         do {
-            echo '任務開始 ' . date('Y-m-d H:i:s') . PHP_EOL;
-
+            $time_start = microtime(true);
             $rs = $this->service->runGetUpdates($BotName);
-            if ($rs === false) {
+
+            if ($rs !== false && $rs->ok === true ) {
+                $done++;
+
+                $result = ! empty($rs->result) ? (array) $rs->result : [];
+
+                $this->service->parseResult($result);
+
+                foreach ($this->service->messages as $message) {
+                    $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' message : '.json_encode($message), true);
+                    dispatch(new TelegramBotMessageEvent($message));
+                }
+
+                foreach ($this->service->new_chat_members as $chat_members) {
+                    foreach ($chat_members as $member) {
+                        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' new_chat_member : '.json_encode($member), true);
+                        dispatch(new TelegramBotNewChatMembersEvent($member));
+                    }
+                }
+
+                $time_end = microtime(true);
+                $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Bot ['.$BotName.'] DONE(' . $done . ') / USED '.($time_end - $time_start) . ' s', true);
+                // usleep( 100 );
+            } else {
                 $ok = false;
             }
-
-            echo '任務完成 ' . date('Y-m-d H:i:s') . PHP_EOL;
         } while ($ok === true);
+
+        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Bot ['.$BotName.'] END(' . $done . ')', true);
     }
 }
