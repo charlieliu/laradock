@@ -43,15 +43,21 @@ class TelegramBotNewChatMembersEvent implements ShouldQueue
             return;
         }
 
-        $this->service->logInfo(__METHOD__, 'member : ' . json_encode($this->member));
+        $this->service->logInfo(__METHOD__, 'member : ' . json_encode($this->member), true);
 
         $BotName = 'CharlieLiu_bot';
         $this->service->getToken($BotName);
 
-        // set permissions
-        $this->service->restrictChatMember($this->member, true);
+        // set all permissions false
+        $this->service->restrictChatMember($this->member, false);
 
-        $text  = '['.$this->member['name'].'](tg://user?id='.$this->member['id'].') 歡迎到 本社群，請維持禮貌和群友討論，謝謝！\n';
+        $text = '';
+        if ( ! empty($this->member['first_name'])) {
+            $text .= $this->member['first_name'].' ';
+        } else if ( ! empty($this->member['username'])) {
+            $text .= '@'.$this->member['username'].' ';
+        }
+        $text .= '歡迎到 本社群，請維持禮貌和群友討論，謝謝！\n';
         $text .= '進到群組請先觀看我們的群組導航，裡面可以解決你大多數的問題\n';
         $text .= '\n\n';
         $text .= '新進來的朋友記得點一下 “👉🏻解禁我👈🏻”\n';
@@ -60,13 +66,9 @@ class TelegramBotNewChatMembersEvent implements ShouldQueue
         $data = [
             'chat_id' => $this->member['chat_id'],
             'text' => $text,
-            'parse_mode' => 'MarkdownV2',
+            'parse_mode' => 'HTML',
             'reply_markup' => json_encode([
-                'keyboard' => [[['text'=>'👉🏻解禁我👈🏻']]],
-                'resize_keyboard' => true,
-                'one_time_keyboard' => true,
-                'input_field_placeholder' => '👉🏻解禁我👈🏻',
-                'selective' => true,
+                'inline_keyboard' => [[['text'=>'👉🏻解禁我👈🏻','callback_data'=>'unban_me']]],
             ])
         ];
         $sendResult = $this->service->sendMessage($data);
@@ -75,5 +77,6 @@ class TelegramBotNewChatMembersEvent implements ShouldQueue
         } else {
             $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Sorry message not sent to: ' . $this->member['chat_id']);
         }
+        $this->service->logInfo(__METHOD__, 'END');
     }
 }

@@ -3,7 +3,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Support\Js;
 use Longman\TelegramBot\Request;
 use Longman\TelegramBot\Telegram;
 
@@ -33,6 +33,7 @@ class TelegramBotService
     public $members = [];
     public $new_chat_members = [];
     public $left_chat_member = [];
+    public $callback_queries = [];
     public $BotName = '';
     public $ApiKey = '';
     public $userID = 0;
@@ -202,7 +203,7 @@ class TelegramBotService
      */
     public function runGetUpdates($BotName) {
         $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'START', true);
+        $this->logInfo(__METHOD__, 'START');
 
         $ApiKey = $this->getToken($BotName);
 
@@ -224,22 +225,80 @@ class TelegramBotService
             }
 
             $time_end = microtime(true);
-            $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s', true);
+            $this->logInfo(__METHOD__, 'END');
+            $this->logInfo(__METHOD__, 'USED '.($time_end - $time_start) . ' s');
             return $rs;
         } catch (\Longman\TelegramBot\Exception\TelegramException $e) {
             $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' ERROR '. json_encode($e->getMessage()), true);
         }
     }
 
-    public function sendMessage($data = []) {
+    /**
+     * send chat members message
+     * @param array $input
+     * @return object $rs
+     */
+    public function sendMessage($input = []) {
         $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'START');
+        $this->logInfo(__METHOD__, 'START ' . json_encode($input));
 
-        $rs = Request::sendMessage($data);
+        $rs = Request::sendMessage($input);
 
         $time_end = microtime(true);
         $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
         return $rs;
+    }
+
+    /**
+     * send chat members message
+     * @param array $input
+     * @return object $rs
+     */
+    public function deleteMessage($input = []) {
+        $time_start = microtime(true);
+        $this->logInfo(__METHOD__, 'START ' . json_encode($input));
+
+        $sendResult = Request::send('deleteMessage', $input);
+        if ($sendResult->isOk()) {
+            $this->logInfo(__METHOD__, 'Message deleted succesfully to: ' . $input['chat_id']);
+        } else {
+            $this->logInfo(__METHOD__, 'Sorry message not deleted to: ' . $input['chat_id']);
+        }
+
+        $time_end = microtime(true);
+        $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
+        return $sendResult;
+    }
+
+    /**
+     * set chat members permissions
+     * @param array $member user info
+     * @param boolean $enabled enabled
+     */
+    public function restrictChatMember($member, $enabled = false) {
+        if (empty($member['id']) || empty($member['chat_id'])) {
+            return false;
+        }
+        $data = [
+            'chat_id' => $member['chat_id'],
+            'user_id' => $member['id'],
+            'permissions' => json_encode([
+                'can_send_messages' => $enabled,
+                'can_send_media_messages' => false,
+                'can_send_polls' => $enabled,
+                'can_send_other_messages' => false,
+                'can_add_web_page_previews' => false,
+                'can_change_info' => false,
+                'can_invite_users' => false,
+                'can_pin_messages' => false
+            ])
+        ];
+        $sendResult = Request::send('restrictChatMember', $data);
+        if ($sendResult->isOk()) {
+            $this->logInfo(__METHOD__, 'Message sent succesfully to: ' . $member['chat_id']);
+        } else {
+            $this->logInfo(__METHOD__, 'Sorry message not sent to: ' . $member['chat_id']);
+        }
     }
 
     /**
@@ -283,6 +342,23 @@ class TelegramBotService
         return $list;
     }
 
+    /**
+     * Parse Data for view
+     * @param array $input each row data
+     * @return array $output
+     */
+    public function parseResult($input) {
+        $this->logInfo(__METHOD__, 'input : '.json_encode($input));
+        $this->cleanTmp();
+        $output = [];
+        foreach ((array)$input as $row) {
+            $tmp = $this->parseData((array)$row);
+            $output[] = $tmp;
+        }
+        $this->logInfo(__METHOD__, 'input : '.json_encode($output));
+        return $output;
+    }
+
     public function cleanTmp() {
         $this->messages = [];
         $this->polls = [];
@@ -290,21 +366,7 @@ class TelegramBotService
         $this->members = [];
         $this->new_chat_members = [];
         $this->left_chat_member = [];
-    }
-
-    /**
-     * Parse Data for view
-     * @param array $input each row data
-     * @return array $output
-     */
-    public function parseResult($input) {
-        $this->cleanTmp();
-        $output = [];
-        foreach ((array)$input as $row) {
-            $tmp = $this->parseData((array)$row);
-            $output[] = $tmp;
-        }
-        return $output;
+        $this->callback_queries = [];
     }
 
     /**
@@ -313,6 +375,7 @@ class TelegramBotService
      * @return array $output
      */
     public function parseData($input) {
+        $this->logInfo(__METHOD__, 'input : '.json_encode($input));
         $output = [
             'update_id' => isset($input['update_id']) ? $input['update_id'] : 0,
             'chat' => '',
@@ -322,74 +385,42 @@ class TelegramBotService
             'text' => ''
         ];
 
-        // message
-        if ( ! empty($input['message'])) {
-            $output['type'] = 'message';
-            $message = $this->parseMessage($input);
-            $output['text'] = $message['text'];
-            if ( ! empty($message['date'])) {
-                $output['date'] = date('Y/m/d H:i:s', $message['date']);
+        $types = [
+            'message','edited_message','channel_post',
+            'my_chat_member',
+            'callback_query',
+            'poll'
+        ];
+        foreach ($types as $type) {
+            if ( ! empty($input[$type])) {
+                $output['type'] = $type;
             }
-            if ( ! empty($message['from'])) {
-                $output['from'] = $message['from'];
-            }
-            if ( ! empty($message['chat_name'])) {
-                $output['chat'] = $message['chat_name'];
-            }
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
-            return $output;
         }
 
-        if ( ! empty($input['edited_message'])) {
-            $output['type'] = 'edited_message';
-            $message = $this->parseMessage($input, 'edited_message');
-            $output['text'] = $message['text'];
-            if ( ! empty($message['date'])) {
-                $output['date'] = date('Y/m/d H:i:s', $message['date']);
-            }
-            if ( ! empty($message['from'])) {
-                $output['from'] = $message['from'];
-            }
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
-            return $output;
+        $tmp = [];
+        switch ($output['type']) {
+            case 'message':
+            case 'edited_message':
+            case 'channel_post':
+                $tmp = $this->parseMessage($input, $output['type']);
+                break;
+            case 'my_chat_member':
+                $tmp = $this->parseMyChatMember($input, $output['type']);
+                break;
+            case 'callback_query':
+                $tmp = $this->parseCallbackQuery($input, $output['type']);
+                break;
+            default:
+                $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), true);
+                exit;
         }
 
-        // poll
-        if ( ! empty($input['poll'])) {
-            $output['type'] = 'poll';
-            $poll = $input['poll'];
-            $this->polls[$poll['id']] = $poll;
-            $output['text'] = $poll['question'].' : '.json_encode($poll['options']);
-            if ( ! empty($poll['from'])) {
-                $output['from'] = $poll['from'];
-            }
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
-            return $output;
+        $output = $this->mergeItems($tmp , ['from'=>'from','date'=>'date','text'=>'text','chat_name'=>'chat'], $output);
+        if ( ! empty($tmp['date'])) {
+            $output['date'] = date('Y/m/d H:i:s', $tmp['date']);
         }
-
-        // channel
-        if ( ! empty($input['channel_post'])) {
-            $output['type'] = 'channel_post';
-            $message = $this->parseMessage($input, 'channel_post');
-            if ( ! empty($message['from'])) {
-                $output['from'] = $message['from'];
-            }
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
-            return $output;
-        }
-
-        // chat member
-        if ( ! empty($input['my_chat_member'])) {
-            $output['type'] = 'my_chat_member';
-            $message = $this->parseMyChatMember($input);
-            if ( ! empty($message['from'])) {
-                $output['from'] = $message['from'];
-            }
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), false);
-            return $output;
-        }
-        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), true);
-        exit;
+        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output));
+        return $output;
     }
 
     /**
@@ -398,10 +429,27 @@ class TelegramBotService
      * @param array $default default output
      * @return array $default
      */
-    public function parseItem($input, $item, $default) {
-        foreach ($default as $key => $value) {
-            if (isset($input[$item][$key])) {
-                $default[$key] = $input[$item][$key];
+    public function parseItem($input, $item, $default = []) {
+        if ( ! isset($input[$item]) || empty($input[$item])) {
+            return $default;
+        }
+        $maps = [];
+        foreach (array_keys($default) as $key) {
+            $maps[$key] = $key;
+        }
+        return $this->mergeItems($input[$item], $maps, $default);
+    }
+
+    /**
+     * @param array $input
+     * @param array $keys
+     * @param array $default default output
+     * @return array $default
+     */
+    public function mergeItems($input, $maps, $default = []) {
+        foreach ($maps as $key => $trans) {
+            if (isset($input[$key])) {
+                $default[$trans] = $input[$key];
             }
         }
         return $default;
@@ -458,65 +506,76 @@ class TelegramBotService
 
     /**
      * @param array $input
+     * @param int $chat_id
+     * @return array
+     */
+    public function parseOtherMember($input, $chat_id) {
+        $output = [
+            'old_chat_member' => false,
+            'new_chat_member' => false,
+            'new_chat_members' => false,
+            'left_chat_member' => false
+        ];
+        if (isset($input['old_chat_member']) && ! empty($input['old_chat_member'])) {
+            $chat_member = $this->parseChatMember($input['old_chat_member'], $chat_id);
+            $output['old_chat_member'] = true;
+        }
+        if (isset($input['new_chat_member']) && ! empty($input['new_chat_member'])) {
+            $chat_member = $this->parseChatMember($input['new_chat_member'], $chat_id);
+            if ( ! empty($chat_member['id'])) {
+                $this->new_chat_members[$chat_id][$chat_member['id']] = $chat_member;
+            }
+            $output['new_chat_member'] = true;
+        }
+        if (isset($input['new_chat_members']) && ! empty($input['new_chat_members'])) {
+            foreach ($input['new_chat_members'] as $new_chat_member) {
+                $chat_member = $this->parseChatMember($new_chat_member, $chat_id);
+                if ( ! empty($chat_member['id'])) {
+                    $this->new_chat_members[$chat_id][$chat_member['id']] = $chat_member;
+                }
+            }
+            $output['new_chat_members'] = true;
+        }
+        if (isset($input['left_chat_member']) && ! empty($input['left_chat_member'])) {
+            $left_chat_member = $input['left_chat_member'];
+            $this->left_chat_members[$left_chat_member['id']] = $left_chat_member;
+            $output['left_chat_member'] = true;
+        }
+
+        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output));
+        return $output;
+    }
+
+    /**
+     * @param array $input
      * @param string $item parse item name
      * @return array
      */
     public function parseMessage($input, $type = 'message') {
-        if (empty($input[$type])) {
-            echo __METHOD__.' LINE : '.__LINE__.' '.json_encode($input);exit;
+        $output = ['id'=>'','chat_id'=>'','chat_name'=>'','member_id'=>'','from'=>'--','date'=>'----/--/--','text'=>''];
+        if ( ! isset($input[$type]) || empty($input[$type])) {
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' type : ' . json_encode($type), true);
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . json_encode($input), true);
+            return $output;
         }
+        $output = $this->mergeItems($input[$type], ['message_id'=>'id','date'=>'date','text'=>'text'], $output);
+
         $member = $this->parseMember($input[$type]);
+        $output = $this->mergeItems($member , ['id'=>'member_id','from'=>'from'], $output);
+
         $chat = $this->parseChat($input[$type], 'chat');
-        $output = [
-            'id' => $input[$type]['message_id'],
-            'chat_id' => $chat['id'],
-            'chat_name' => '',
-            'member_id' => $member['id'],
-            'from' => '--',
-            'date' => '----/--/--',
-            'text' => ''
-        ];
-        if (isset($this->chats[$chat['id']]['title'])) {
+        $output = $this->mergeItems($chat , ['id'=>'chat_id','title'=>'chat_name'], $output);
+
+        if (empty($output['chat_name']) && isset($this->chats[$chat['id']]['title'])) {
             $output['chat_name'] = $this->chats[$chat['id']]['title'];
         }
-        if ( ! empty($member['first_name']) || ! empty($member['last_name'])) {
-            $output['from'] = $member['first_name'].' '.$member['last_name'];
+
+        if (isset($input[$type]['sender_chat']) && ! empty($input[$type]['sender_chat'])) {
+            $this->parseChat($input[$type], 'sender_chat');
         }
-        if ( ! empty($member['username'])) {
-            $output['from'] = '@'.$member['username'];
-        }
-        if ( ! empty($input[$type]['date'])) {
-            $output['date'] = $input[$type]['date'];
-        }
-        if (isset($input[$type]['text'])) {
-            $output['text'] = $input[$type]['text'];
-        }
-        if ( ! empty($input[$type]['sender_chat'])) {
-            $this->parse_chat($input[$type], 'sender_chat');
-        }
-        if ( ! empty($input[$type]['old_chat_member'])) {
-            $chat_member = $this->parseChatMember($input[$type]['old_chat_member'], $chat['id']);
-        }
-        if ( ! empty($input[$type]['new_chat_member'])) {
-            $chat_member = $this->parseChatMember($input[$type]['new_chat_member'], $chat['id']);
-            if ( ! empty($chat_member['id'])) {
-                $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
-            }
-        }
-        if ( ! empty($input[$type]['new_chat_members'])) {
-            foreach ($input[$type]['new_chat_members'] as $new_chat_member) {
-                $chat_member = $this->parseChatMember($new_chat_member, $chat['id']);
-                if ( ! empty($chat_member['id'])) {
-                    $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
-                }
-            }
-            $output['text'] .= ' Add '.$new_chat_member['first_name'];
-        }
-        if ( ! empty($input[$type]['left_chat_member'])) {
-            $left_chat_member = $input[$type]['left_chat_member'];
-            $this->left_chat_members[$left_chat_member['id']] = $left_chat_member;
-            $output['text'] .= ' Remove '.$left_chat_member['first_name'];
-        }
+
+        $this->parseOtherMember($input[$type], $chat['id']);
+
         if ( ! empty($input[$type]['new_chat_photo'])) {
             foreach ($input[$type]['new_chat_photo'] as $photo) {
                 // Todo
@@ -527,6 +586,7 @@ class TelegramBotService
             $reply_to_message = $this->parseMessage($input[$type], 'reply_to_message');
             $output['text'] = $reply_to_message['text'].' => '.$output['text'];
         }
+        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output));
         return $output;
     }
 
@@ -536,92 +596,87 @@ class TelegramBotService
      * @return array
      */
     public function parseMyChatMember($input, $type = 'my_chat_member') {
-        $member = $this->parseMember($input[$type]);
+        $output = ['id'=>'','chat_id'=>'','member_id'=> '','from'=>'','date'=>'','text'=>''];
+        if ( ! isset($input[$type]) || empty($input[$type])) {
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' type : ' . json_encode($type), true);
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . json_encode($input), true);
+            return $output;
+        }
+        $output = $this->mergeItems($input[$type] , ['id'=>'id','date'=>'date','text'=>'text'], $output);
+
+        $member = $this->parseMember($input[$type], 'from');
+        $output = $this->mergeItems($member , ['id'=>'member_id','from'=>'from'], $output);
+
         $chat = $this->parseChat($input[$type], 'chat');
-        $output = [
-            'id' => '',
-            'chat_id' => $chat['id'],
-            'member_id' => $member['id'],
-            'from' => '--',
-            'date' => '----/--/--',
-            'text' => ''
-        ];
-        if ( ! empty($member['first_name']) || ! empty($member['last_name'])) {
-            $output['from'] = $member['first_name'].' '.$member['last_name'];
-        }
-        if ( ! empty($member['username'])) {
-            $output['from'] = '@'.$member['username'];
-        }
-        if ( ! empty($input[$type]['date'])) {
-            $output['date'] = $input[$type]['date'];
-        }
-        if (isset($input[$type]['text'])) {
-            $output['text'] = $input[$type]['text'];
-        }
-        if ( ! empty($input[$type]['sender_chat'])) {
+        $output = $this->mergeItems($chat , ['id'=>'chat_id'], $output);
+
+        if (isset($input[$type]['sender_chat']) && ! empty($input[$type]['sender_chat'])) {
             $this->parseChat($input[$type], 'sender_chat');
         }
-        if ( ! empty($input[$type]['old_chat_member'])) {
-            $chat_member = $this->parseChatMember($input[$type]['old_chat_member'], $chat['id']);
-        }
-        if ( ! empty($input[$type]['new_chat_member'])) {
-            $chat_member = $this->parseChatMember($input[$type]['new_chat_member'], $chat['id']);
-            if ( ! empty($chat_member['id'])) {
-                $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
-            }
-        }
-        if ( ! empty($input[$type]['new_chat_members'])) {
-            foreach ($input[$type]['new_chat_members'] as $new_chat_member) {
-                $chat_member = $this->parseChatMember($new_chat_member, $chat['id']);
-                if ( ! empty($chat_member['id'])) {
-                    $this->new_chat_members[$chat['id']][$chat_member['id']] = $chat_member;
-                }
-            }
-            $output['text'] .= ' Add new_chat_member';
-        }
-        if ( ! empty($input[$type]['left_chat_member'])) {
-            $chat_member = $input[$type]['left_chat_member'];
-            $this->left_chat_members[$chat_member['id']] = $chat_member;
-            $output['text'] .= ' Remove '.$chat_member['first_name'];
-        }
-        if ( ! empty($input[$type]['new_chat_photo'])) {
+
+        $this->parseOtherMember($input[$type], $chat['id']);
+
+        if (isset($input[$type]['new_chat_photo']) && ! empty($input[$type]['new_chat_photo'])) {
             foreach ($input[$type]['new_chat_photo'] as $photo) {
                 // $output['text'] .= $photo['file_id'];
             }
         }
-        if ( ! empty($input[$type]['reply_to_message'])) {
+
+        if (isset($input[$type]['reply_to_message']) && ! empty($input[$type]['reply_to_message'])) {
             $reply_to_message = $this->parseMessage($input[$type], 'reply_to_message');
             $output['text'] = $reply_to_message['text'].' => '.$output['text'];
         }
+        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output));
         return $output;
     }
 
     /**
-     * set chat members permissions
+     * Parse Callback Query
+     * @param array $input
+     * @param string $type parse item name
+     * @return array
      */
-    public function restrictChatMember($member, $enabled = false) {
-        if (empty($member['id']) || empty($member['chat_id'])) {
-            return false;
+    public function parseCallbackQuery($input, $type = 'callback_query') {
+        $output = ['id'=>'','chat_id'=>'','member_id'=> '','from'=>'','date'=>'','text'=>'','message_id'=>''];
+        if ( ! isset($input[$type]) && empty($input[$type])) {
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' type : ' . json_encode($type), true);
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . json_encode($input), true);
+            return $output;
         }
-        $data = [
-            'chat_id' => $member['chat_id'],
-            'user_id' => $member['id'],
-            'permissions' => json_encode([
-                'can_send_messages' => $enabled,
-                'can_send_media_messages' => false,
-                'can_send_polls' => $enabled,
-                'can_send_other_messages' => false,
-                'can_add_web_page_previews' => false,
-                'can_change_info' => false,
-                'can_invite_users' => false,
-                'can_pin_messages' => false
-            ])
-        ];
-        $sendResult = Request::send('restrictChatMember', $data);
-        if ($sendResult->isOk()) {
-            $this->logInfo(__METHOD__, 'Message sent succesfully to: ' . $member['chat_id']);
-        } else {
-            $this->logInfo(__METHOD__, 'Sorry message not sent to: ' . $member['chat_id']);
+        $output = $this->mergeItems($input[$type], ['id'=>'id','data'=>'text'], $output);
+        $member = $this->parseMember($input[$type], 'from');
+        $output = $this->mergeItems($member , ['id'=>'member_id','from'=>'from'], $output);
+        $message = $this->parseMessage($input[$type]);
+        $output = $this->mergeItems($message , ['id'=>'message_id','chat_id'=>'chat_id','date'=>'date'], $output);
+        $this->callback_queries[$output['id']] = $output;
+        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), true);
+        return $output;
+    }
+
+    /**
+     * Parse Callback Query
+     * @param array $input
+     * @param string $type parse item name
+     * @return array
+     */
+    public function parsePoll($input, $type = 'poll') {
+        $output = ['id'=>'','chat_id'=>'','member_id'=> '','from'=>'','date'=>'','text'=>''];
+        if ( ! isset($input[$type]) || empty($input[$type])) {
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' type : ' . json_encode($type), true);
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . json_encode($input), true);
+            return $output;
         }
+        $output = $this->mergeItems($input[$type], ['id'=>'id','date'=>'date'], $output);
+        $member = $this->parseMember($input[$type], 'from');
+        $output = $this->mergeItems($member , ['id'=>'member_id','from'=>'from'], $output);
+        if (isset($input[$type]['question']) && ! empty($input[$type]['question'])) {
+            $output['text'] .= $input[$type]['question'];
+        }
+        if (isset($input[$type]['options']) && ! empty($input[$type]['options'])) {
+            $output['text'] .= json_encode($input[$type]['options']);
+        }
+        $this->polls[$output['id']] = $output;
+        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output));
+        return $output;
     }
 }

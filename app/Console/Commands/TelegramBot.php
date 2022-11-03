@@ -9,6 +9,7 @@ use App\Services\TelegramBotService;
 
 use App\Jobs\TelegramBotMessageEvent;
 use App\Jobs\TelegramBotNewChatMembersEvent;
+use App\Jobs\TelegramBotCallbackQueryEvent;
 
 class TelegramBot extends Command
 {
@@ -48,6 +49,7 @@ class TelegramBot extends Command
      */
     public function handle()
     {
+        $live_start = microtime(true);
         $BotName = 'CharlieLiu_bot';
         $this->service->getToken($BotName);
         $this->service->logInfo(__METHOD__, 'Bot ['.$BotName.'] START', true);
@@ -76,8 +78,15 @@ class TelegramBot extends Command
                     }
                 }
 
+                foreach ($this->service->callback_queries as $callback) {
+                    $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' callback : '.json_encode($callback), true);
+                    dispatch(new TelegramBotCallbackQueryEvent($callback));
+                }
+
                 $time_end = microtime(true);
-                $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Bot ['.$BotName.'] DONE(' . $done . ') / USED '.($time_end - $time_start) . ' s', true);
+                $this->service->logInfo(__METHOD__, 'Bot ['.$BotName.'] DONE(' . $done . ')', true);
+                $this->service->logInfo(__METHOD__, 'Bot ['.$BotName.'] USED '.($time_end - $time_start) . ' s', true);
+                $this->service->logInfo(__METHOD__, 'Bot ['.$BotName.'] LIVE '.($time_end - $live_start) . ' s', true);
                 // usleep( 100 );
             } else {
                 $ok = false;

@@ -38,8 +38,9 @@ class TelegramBotMessageEvent implements ShouldQueue
      */
     public function handle()
     {
+        $this->service->logInfo(__METHOD__, 'START');
         if (empty($this->message)) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR message : ' . json_encode($this->message));
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR message : ' . json_encode($this->message), true);
             return;
         }
 
@@ -81,5 +82,6 @@ class TelegramBotMessageEvent implements ShouldQueue
                 }
             }
         }
+        $this->service->logInfo(__METHOD__, 'END');
     }
 }
