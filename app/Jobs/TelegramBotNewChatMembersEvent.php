@@ -38,6 +38,7 @@ class TelegramBotNewChatMembersEvent implements ShouldQueue
      */
     public function handle()
     {
+        $this->service->logInfo(__METHOD__, 'START');
         if (empty($this->member) || empty($this->member['id']) || empty($this->member['chat_id'])) {
             $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR member : ' . json_encode($this->member));
             return;

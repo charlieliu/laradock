@@ -219,7 +219,9 @@ class TelegramBotService
                 'database' => env('DB_DATABASE'),
                 'password' => env('DB_PASSWORD')
             ])->useGetUpdatesWithoutDatabase(false);
-            $rs = $this->telegram->handleGetUpdates();
+
+            // Get Telegram data set timeout 60
+            $rs = $this->telegram->handleGetUpdates(null, 60);
             if ( ! isset($rs->ok) || $rs->ok !== true) {
                 return false;
             }
