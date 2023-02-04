@@ -4,12 +4,11 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Foundation\Bus\DispatchesJobs;
+use Illuminate\Support\Facades\Cache;
 
 use App\Services\TelegramBotService;
 
-use App\Jobs\TelegramBotMessageEvent;
-use App\Jobs\TelegramBotNewChatMembersEvent;
-use App\Jobs\TelegramBotCallbackQueryEvent;
+use App\Jobs\TelegramBotGetUpdate;
 
 class TelegramBot extends Command
 {
@@ -47,52 +46,32 @@ class TelegramBot extends Command
      *
      * @return int
      */
-    public function handle()
-    {
+    public function handle() {
+        $this->service->logInfo(__METHOD__, 'START(' . date('Y-m-d H:i:s') . ') ', true);
         $live_start = microtime(true);
-        $BotName = 'CharlieLiu_bot';
-        $this->service->getToken($BotName);
-        $this->service->logInfo(__METHOD__, 'Bot ['.$BotName.'] START', true);
+        $bots = $this->service->bots();
         $done = 0;
         $ok = true;
         do {
-            $time_start = microtime(true);
-            $rs = $this->service->runGetUpdates($BotName);
+            foreach ($bots as $bot) {
+                $time_start = microtime(true);
 
-            if ($rs !== false && $rs->ok === true ) {
-                $done++;
-
-                $result = ! empty($rs->result) ? (array) $rs->result : [];
-
-                $this->service->parseResult($result);
-
-                foreach ($this->service->messages as $message) {
-                    $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' message : '.json_encode($message), true);
-                    dispatch(new TelegramBotMessageEvent($message));
+                if ($done < count($bots)) {
+                    Cache::forget($bot['username']);
                 }
 
-                foreach ($this->service->new_chat_members as $chat_members) {
-                    foreach ($chat_members as $member) {
-                        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' new_chat_member : '.json_encode($member), true);
-                        dispatch(new TelegramBotNewChatMembersEvent($member));
-                    }
-                }
+                if ( ! Cache::has($bot['username'])){
+                    $this->service->logInfo(__METHOD__, 'Bot ['.$bot['username'].'] START(' . date('Y-m-d H:i:s') . ') ', true);
+                    dispatch(new TelegramBotGetUpdate($bot));
 
-                foreach ($this->service->callback_queries as $callback) {
-                    $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' callback : '.json_encode($callback), true);
-                    dispatch(new TelegramBotCallbackQueryEvent($callback));
+                    $time_end = microtime(true);
+                    $this->service->logInfo(__METHOD__, 'Bot ['.$bot['username'].'] END(' . date('Y-m-d H:i:s') . ') ', true);
+                    $this->service->logInfo(__METHOD__, 'Bot ['.$bot['username'].'] USED(' . ($time_end - $time_start) . ') ', true);
+                    $done++;
                 }
-
-                $time_end = microtime(true);
-                $this->service->logInfo(__METHOD__, 'Bot ['.$BotName.'] DONE(' . $done . ')', true);
-                $this->service->logInfo(__METHOD__, 'Bot ['.$BotName.'] USED '.($time_end - $time_start) . ' s', true);
-                $this->service->logInfo(__METHOD__, 'Bot ['.$BotName.'] LIVE '.($time_end - $live_start) . ' s', true);
-                // usleep( 100 );
-            } else {
-                $ok = false;
             }
+            $live_end = microtime(true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' DONE(' . $done . ') LIVE '.($live_end - $live_start) . ' s', true);
         } while ($ok === true);
-
-        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Bot ['.$BotName.'] END(' . $done . ')', true);
     }
 }

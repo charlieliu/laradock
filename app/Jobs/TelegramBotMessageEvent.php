@@ -36,8 +36,7 @@ class TelegramBotMessageEvent implements ShouldQueue
      *
      * @return void
      */
-    public function handle()
-    {
+    public function handle() {
         $this->service->logInfo(__METHOD__, 'START');
         if (empty($this->message)) {
             $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR message : ' . json_encode($this->message), true);
@@ -60,26 +59,46 @@ class TelegramBotMessageEvent implements ShouldQueue
         if ($this->message['chat_id'] == $this->message['member_id']) {
             // message from private group
             $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' private group message : ' . json_encode($this->message));
-            return;
         }
 
         $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' message : ' . json_encode($this->message));
 
-        $BotName = 'CharlieLiu_bot';
+        $BotName = ! empty($this->message['bot_name']) ? $this->message['bot_name'] : 'CharlieLiu_bot';
         $this->service->getToken($BotName);
 
-        if ( ! empty($this->message['text']) &&  ! empty($this->message['chat_id'])) {
-            if (strpos(strtolower($this->message['text']) , 'are you bot') !== false ) {
+        $text = ! empty($this->message['text']) ? strtolower($this->message['text']) : '';
+        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' text : ' . json_encode($text));
+
+        if ( ! empty($text) && ! empty($this->message['chat_id'])) {
+
+            $sendResult = false;
+
+            if (strpos($text, 'are you bot') !== false ) {
                 $sendResult = $this->service->sendMessage([
                     'chat_id' => $this->message['chat_id'],
-                    'text' => 'Yes, I am bot.'
+                    'text' => 'Yes, @' . $BotName . ' is a bot.'
                 ]);
-                // echo '$sendResult : ' . json_encode($sendResult) . PHP_EOL;
-                if ($sendResult->isOk()) {
-                    $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Message sent succesfully to: ' . $this->message['chat_id']);
-                } else {
-                    $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Sorry message not sent to: ' . $this->message['chat_id']);
-                }
+            }
+            if ($text == '/start') {
+                $sendResult = $this->service->sendMessage([
+                    'chat_id' => $this->message['chat_id'],
+                    'text' => '⚠️ This is the testnet version of @' . $BotName,
+                    'reply_markup' => json_encode([
+                        'inline_keyboard' => [
+                            [['text'=>'Wallet','callback_data'=>'/Wallet'],['text'=>'Subscriptions','callback_data'=>'/Subscriptions']],
+                            [['text'=>'Market','callback_data'=>'/Market'],['text'=>'Exchange','callback_data'=>'/Exchange']],
+                            [['text'=>'Checks','callback_data'=>'/Checks'],['text'=>'Invoices','callback_data'=>'/Invoices']],
+                            [['text'=>'Pay','callback_data'=>'/Pay'],['text'=>'Contacts','callback_data'=>'/Contacts']],
+                            [['text'=>'Settings','callback_data'=>'/Settings']]
+                        ],
+                    ])
+                ]);
+            }
+
+            if ( ! empty($sendResult) && $sendResult->isOk()) {
+                $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Message sent to: ' . $this->message['chat_id']);
+            } else {
+                $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Sorry message not sent to: ' . $this->message['chat_id']);
             }
         }
         $this->service->logInfo(__METHOD__, 'END');

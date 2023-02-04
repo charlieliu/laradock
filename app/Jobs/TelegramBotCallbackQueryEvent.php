@@ -48,26 +48,127 @@ class TelegramBotCallbackQueryEvent implements ShouldQueue
             return;
         }
 
-        $this->service->logInfo(__METHOD__, 'callback : ' . json_encode($this->callback), true);
+        $callback = $this->callback;
 
-        $BotName = 'CharlieLiu_bot';
+        $this->service->logInfo(__METHOD__, 'callback : ' . json_encode($callback), true);
+
+        $BotName = empty($this->callback['bot_name']) ? 'CharlieLiu_bot' : $callback['bot_name'];
         $this->service->getToken($BotName);
 
-        if ($this->callback['text'] === 'unban_me') {
+        $data = strtolower($this->callback['text']);
+        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' text : '.var_export($data, true), true);
+
+        $text = '⚠️ This is the testnet version of @' . $BotName;
+        $reply_markup = json_encode([
+            'inline_keyboard' => [
+                [['text'=>'Back','callback_data'=>'/Start']]
+            ],
+        ]);
+        switch ($data) {
+            case '/start':
+                $reply_markup = json_encode([
+                    'inline_keyboard' => [
+                        [['text'=>'Wallet','callback_data'=>'/wallet'],['text'=>'Subscriptions','callback_data'=>'/subscriptions']],
+                        [['text'=>'Market','callback_data'=>'/market'],['text'=>'Exchange','callback_data'=>'/exchange']],
+                        [['text'=>'Checks','callback_data'=>'/checks'],['text'=>'Invoices','callback_data'=>'/invoices']],
+                        [['text'=>'Pay','callback_data'=>'/pay'],['text'=>'Contacts','callback_data'=>'/contacts']],
+                        [['text'=>'Settings','callback_data'=>'/settings']]
+                    ],
+                ]);
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
+            case '/wallet':
+                $reply_markup = json_encode([
+                    'inline_keyboard' => [
+                        [['text'=>'Deposit','callback_data'=>'/deposit'],['text'=>'Withdraw','callback_data'=>'/withdraw']],
+                        [['text'=>'Back','callback_data'=>'/Start']]
+                    ],
+                ]);
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
+            case '/subscriptions':
+                $text = 'Chat message subscription, not related to trading business.';
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
+            case '/market':
+                $reply_markup = json_encode([
+                    'inline_keyboard' => [
+                        [['text'=>'Buy','callback_data'=>'/Buy'],['text'=>'Sell','callback_data'=>'/Sell']],
+                        [['text'=>'Back','callback_data'=>'/Start']]
+                    ],
+                ]);
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
+            case '/buy':
+            case '/sell':
+            case '/deposit':
+            case '/withdraw':
+            case '/pay':
+                $text = 'Please select a crypto currency.';
+                $reply_markup = json_encode([
+                    'inline_keyboard' => [
+                        [['text'=>'BTC','callback_data'=>$data.'_btc']],
+                        [['text'=>'ETH','callback_data'=>$data.'_eth']],
+                        [['text'=>'Back','callback_data'=>'/'.$data]]
+                    ],
+                ]);
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
+            case '/exchange':
+                $text = 'Support limit order trading, fee taker(0.75%) maker(0.5%)';
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
+            case '/checks':
+            case '/invoices':
+            case '/contacts':
+            case '/settings':
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
+        }
+
+        if ($data === 'unban_me') {
             $member = [
-                'id'        => $this->callback['member_id'],
-                'chat_id'   => $this->callback['chat_id'],
+                'id'        => $callback['member_id'],
+                'chat_id'   => $callback['chat_id'],
             ];
             $this->service->restrictChatMember($member, true);
-
             $this->service->logInfo(__METHOD__, 'member ' . json_encode($member));
-
             $this->service->deleteMessage([
-                'chat_id'   => $this->callback['chat_id'],
-                'message_id'=> $this->callback['message_id'],
+                'chat_id'   => $callback['chat_id'],
+                'message_id'=> $callback['message_id'],
             ]);
         }
 
         $this->service->logInfo(__METHOD__, 'END');
+    }
+
+    /**
+     * edit Message text and keyboard
+     *
+     * @param array $callback
+     * @param string $text
+     * @param string $keyboard
+     * @return void
+     */
+    private function _editMessage($callback, $text, $reply_markup = '') {
+        if (empty($reply_markup)) {
+            $reply_markup = json_encode([
+                'inline_keyboard' => [
+                    [['text'=>'Back','callback_data'=>'/Start']]
+                ],
+            ]);
+        }
+        if ($callback['message_text'] != $text) {
+            $this->service->editMessageText([
+                'chat_id' => $callback['chat_id'],
+                'message_id' => $callback['message_id'],
+                'text' => $text
+            ]);
+        }
+        $this->service->editMessageReplyMarkup([
+            'chat_id' => $callback['chat_id'],
+            'message_id' => $callback['message_id'],
+            'reply_markup' => $reply_markup
+        ]);
     }
 }
