@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -11,7 +10,7 @@ use Illuminate\Queue\SerializesModels;
 
 use App\Services\TelegramBotService;
 
-class TelegramBotNewChatMembersEvent implements ShouldQueue, ShouldBeUnique
+class TelegramBotNewChatMembersEvent implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -73,7 +72,7 @@ class TelegramBotNewChatMembersEvent implements ShouldQueue, ShouldBeUnique
             ])
         ];
         $sendResult = $this->service->sendMessage($data);
-        if ($sendResult->isOk()) {
+        if ( ! empty($sendResult) && $sendResult['ok'] === true) {
             $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Message sent succesfully to: ' . $this->member['chat_id']);
         } else {
             $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Sorry message not sent to: ' . $this->member['chat_id']);

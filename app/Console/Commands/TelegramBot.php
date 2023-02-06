@@ -47,9 +47,8 @@ class TelegramBot extends Command
      * @return int
      */
     public function handle() {
-        $live_start = microtime(true);
+        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' START(' . date('Y-m-d H:i:s') . ') ', true);
         $bots = $this->service->bots();
-        $done = 0;
         $cache_time = 0;
         $cache_start = microtime(true);
         $ok = true;
@@ -57,19 +56,12 @@ class TelegramBot extends Command
             Cache::forget($bot['username']);
         }
         do {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' START(' . date('Y-m-d H:i:s') . ') ', true);
             foreach ($bots as $bot) {
-                if ( ! Cache::has($bot['username'])){
-                    $time_start = microtime(true);
-                    dispatch(new TelegramBotGetUpdate($bot));
-                    $time_end = microtime(true);
-                    $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Bot ['.$bot['username'].'] USED(' . ($time_end - $time_start) . ') ', true);
-                }
+                dispatch(new TelegramBotGetUpdate($bot));
             }
             sleep(1);
-            $done++;
             $live_end = microtime(true);
-            if ($cache_time > 600) {
+            if ($cache_time > 60) {
                 foreach ($bots as $bot) {
                     Cache::forget($bot['username']);
                 }
@@ -78,8 +70,6 @@ class TelegramBot extends Command
             } else {
                 $cache_time += ($live_end - $cache_start);
             }
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Cache LIVE '. ($cache_time) . ' s', true);
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' DONE(' . $done . ') LIVE '. ($live_end - $live_start) . ' s', true);
         } while ($ok === true);
     }
 }

@@ -62,6 +62,189 @@ class TelegramBotService
 
     private $telegram;
 
+    /**
+     * https://github.com/Eleirbag89/TelegramBotPHP/blob/bc0dd1d1e400b1d860b1fc111b988a25fa02857f/Telegram.php
+     */
+    public function endpoint($action, array $content, $post = true) {
+        $url = 'https://api.telegram.org/bot'.$this->ApiKey.'/'.$action;
+        if ($post) {
+            $reply = $this->_cURL($url, $content, $error);
+        } else {
+            $reply = $this->_cURL($url, [], $error);
+        }
+        return json_decode($reply, true);
+    }
+
+    /**
+     * cURL 略過檢查 SSL 憑證有效性
+     * @param string    $url
+     * @param array     $data
+     * @param string    $error
+     * @return string
+     */
+    private function _cURL($url, $data=[], &$error) {
+        $time_start = microtime(true);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' cURL url '.var_export($url, true).' cURL data '.var_export($data, true));
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);// 這裡略過檢查 SSL 憑證有效性
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        $output = curl_exec($ch);
+        $error = curl_error($ch);
+        $info = curl_getinfo($ch);
+        curl_close($ch);
+        $time_end = microtime(true);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END '.var_export($output, true).' USED '.($time_end - $time_start).' s');
+        if (empty($output)) {
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' cURL error '. json_encode($error));
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' cURL info '. json_encode($info));
+            $output = json_encode(
+                ['ok' => false, 'curl_error_code' => curl_errno($ch), 'curl_error' => curl_error($ch)]
+            );
+        }
+        return $output;
+    }
+
+    /**
+     * https://github.com/Eleirbag89/TelegramBotPHP/blob/bc0dd1d1e400b1d860b1fc111b988a25fa02857f/Telegram.php
+     * Return current update type `False` on failure.
+     *
+     * @return bool|string
+     */
+    public function getUpdateType() {
+        $update = $this->input_data;
+        if (isset($update['inline_query'])) {
+            return self::INLINE_QUERY;
+        }
+        if (isset($update['callback_query'])) {
+            return self::CALLBACK_QUERY;
+        }
+        if (isset($update['edited_message'])) {
+            return self::EDITED_MESSAGE;
+        }
+        if (isset($update['message']['text'])) {
+            return self::MESSAGE;
+        }
+        if (isset($update['message']['photo'])) {
+            return self::PHOTO;
+        }
+        if (isset($update['message']['video'])) {
+            return self::VIDEO;
+        }
+        if (isset($update['message']['audio'])) {
+            return self::AUDIO;
+        }
+        if (isset($update['message']['voice'])) {
+            return self::VOICE;
+        }
+        if (isset($update['message']['contact'])) {
+            return self::CONTACT;
+        }
+        if (isset($update['message']['location'])) {
+            return self::LOCATION;
+        }
+        if (isset($update['message']['reply_to_message'])) {
+            return self::REPLY;
+        }
+        if (isset($update['message']['animation'])) {
+            return self::ANIMATION;
+        }
+        if (isset($update['message']['sticker'])) {
+            return self::STICKER;
+        }
+        if (isset($update['message']['document'])) {
+            return self::DOCUMENT;
+        }
+        if (isset($update['message']['new_chat_member'])) {
+            return self::NEW_CHAT_MEMBER;
+        }
+        if (isset($update['message']['left_chat_member'])) {
+            return self::LEFT_CHAT_MEMBER;
+        }
+        if (isset($update['channel_post'])) {
+            return self::CHANNEL_POST;
+        }
+        if (isset($update['my_chat_member'])) {
+            return 'my_chat_member';
+        }
+        return false;
+    }
+
+    /**
+     * https://github.com/Eleirbag89/TelegramBotPHP/blob/bc0dd1d1e400b1d860b1fc111b988a25fa02857f/Telegram.php
+     * @param string $type
+     * @return int
+     */
+    public function getMessageID($type) {
+        if ($type == self::CALLBACK_QUERY) {
+            return @$this->input_data['callback_query']['message']['message_id'];
+        }
+        if ($type == self::CHANNEL_POST) {
+            return @$this->input_data['channel_post']['message_id'];
+        }
+        if ($type == self::EDITED_MESSAGE) {
+            return @$this->input_data['edited_message']['message_id'];
+        }
+        return (int) $this->input_data['message']['message_id'];
+    }
+    /**
+     * @param string $type
+     * @return string
+     */
+    public function getMessageText($type) {
+        if ($type == self::CALLBACK_QUERY) {
+            return @$this->input_data['callback_query']['message']['text'];
+        }
+        if ($type == self::CHANNEL_POST) {
+            return @$this->input_data['channel_post']['text'];
+        }
+        if ($type == self::EDITED_MESSAGE) {
+            return @$this->input_data['edited_message']['text'];
+        }
+        return empty($this->input_data['message']['text']) ? '' : empty($this->input_data['message']['text']);
+    }
+
+    /**
+     * https://github.com/Eleirbag89/TelegramBotPHP/blob/bc0dd1d1e400b1d860b1fc111b988a25fa02857f/Telegram.php
+     * @param string $type
+     * @return string
+     */
+    public function getText($type) {
+        if ($type == self::CALLBACK_QUERY) {
+            return @$this->input_data['callback_query']['data'];
+        }
+        if ($type == self::CHANNEL_POST) {
+            return @$this->input_data['channel_post']['text'];
+        }
+        if ($type == self::EDITED_MESSAGE) {
+            return @$this->input_data['edited_message']['text'];
+        }
+        return @$this->input_data['message']['text'];
+    }
+
+    /**
+     * https://github.com/Eleirbag89/TelegramBotPHP/blob/bc0dd1d1e400b1d860b1fc111b988a25fa02857f/Telegram.php
+     * @param string $type
+     * @return int
+     */
+    public function getChatID($type) {
+        if ($type == self::CALLBACK_QUERY) {
+            return @$this->input_data['callback_query']['message']['chat']['id'];
+        }
+        if ($type == self::CHANNEL_POST) {
+            return @$this->input_data['channel_post']['chat']['id'];
+        }
+        if ($type == self::EDITED_MESSAGE) {
+            return @$this->input_data['edited_message']['chat']['id'];
+        }
+        if ($type == self::INLINE_QUERY) {
+            return @$this->input_data['inline_query']['from']['id'];
+        }
+        return (int) $this->input_data['message']['chat']['id'];
+    }
+
     public function logInfo($method = '', $info = '', $echo = false) {
         $log = date('Y-m-d H:i:s') . ' ' .$method. ' '.$info;
         Log::debug($log);
@@ -264,14 +447,7 @@ class TelegramBotService
      * @return object $rs
      */
     public function sendMessage($input = []) {
-        $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' START ' . json_encode($input));
-
-        $rs = Request::sendMessage($input);
-
-        $time_end = microtime(true);
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END / USED '.($time_end - $time_start) . ' s');
-        return $rs;
+        return $this->endpoint('sendMessage', $input);
     }
 
     /**
@@ -280,19 +456,7 @@ class TelegramBotService
      * @return object $rs
      */
     public function editMessageText($input = []) {
-        $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' START ' . json_encode($input));
-
-        $sendResult = Request::send('editMessageText', $input);
-        if ($sendResult->isOk()) {
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' Edit message text to: ' . $input['chat_id']);
-        } else {
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' Sorry message not deleted to: ' . $input['chat_id']);
-        }
-
-        $time_end = microtime(true);
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END / USED '.($time_end - $time_start) . ' s');
-        return $sendResult;
+        return $this->endpoint('editMessageText', $input);
     }
 
     /**
@@ -301,19 +465,7 @@ class TelegramBotService
      * @return object $rs
      */
     public function editMessageReplyMarkup($input = []) {
-        $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'START ' . json_encode($input));
-
-        $sendResult = Request::send('editMessageReplyMarkup', $input);
-        if ($sendResult->isOk()) {
-            $this->logInfo(__METHOD__, 'Edit message ReplyMarkup to: ' . $input['chat_id']);
-        } else {
-            $this->logInfo(__METHOD__, 'Sorry message not deleted to: ' . $input['chat_id']);
-        }
-
-        $time_end = microtime(true);
-        $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
-        return $sendResult;
+        return $this->endpoint('editMessageReplyMarkup', $input);
     }
 
     /**
@@ -322,19 +474,7 @@ class TelegramBotService
      * @return object $rs
      */
     public function deleteMessage($input = []) {
-        $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'START ' . json_encode($input));
-
-        $sendResult = Request::send('deleteMessage', $input);
-        if ($sendResult->isOk()) {
-            $this->logInfo(__METHOD__, 'Message deleted succesfully to: ' . $input['chat_id']);
-        } else {
-            $this->logInfo(__METHOD__, 'Sorry message not deleted to: ' . $input['chat_id']);
-        }
-
-        $time_end = microtime(true);
-        $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
-        return $sendResult;
+        return $this->endpoint('deleteMessage', $input);
     }
 
     /**
@@ -346,7 +486,7 @@ class TelegramBotService
         if (empty($member['id']) || empty($member['chat_id'])) {
             return false;
         }
-        $data = [
+        return $this->endpoint('restrictChatMember', [
             'chat_id' => $member['chat_id'],
             'user_id' => $member['id'],
             'permissions' => json_encode([
@@ -359,13 +499,7 @@ class TelegramBotService
                 'can_invite_users' => false,
                 'can_pin_messages' => false
             ])
-        ];
-        $sendResult = Request::send('restrictChatMember', $data);
-        if ($sendResult->isOk()) {
-            $this->logInfo(__METHOD__, 'Message sent succesfully to: ' . $member['chat_id']);
-        } else {
-            $this->logInfo(__METHOD__, 'Sorry message not sent to: ' . $member['chat_id']);
-        }
+        ]);
     }
 
     /**
@@ -375,7 +509,6 @@ class TelegramBotService
      */
     public function readGetUpdates($name) {
         $ApiKey = '';
-
         // Check Bot's username
         foreach ($this->bots() as $row) {
             if ($row['username'] === $name) {
@@ -386,7 +519,6 @@ class TelegramBotService
             $this->logInfo(__METHOD__, 'Bot ['.$name.'] not exist');
             exit;
         }
-
         // cURL TelegramBot API getUpdates
         $url= 'https://api.telegram.org/bot'.$ApiKey.'/getUpdates';
         $client = new \GuzzleHttp\Client();
@@ -415,7 +547,6 @@ class TelegramBotService
      * @return array $output
      */
     public function parseResult($input) {
-        $this->logInfo(__METHOD__, 'input : '.json_encode($input));
         $this->cleanTmp();
         $output = [];
         foreach ((array)$input as $row) {
@@ -442,20 +573,18 @@ class TelegramBotService
      * @return array $output
      */
     public function parseData($input) {
-        $this->logInfo(__METHOD__, 'input : '.json_encode($input));
         $this->input_data = $input;
         $type = $this->getUpdateType();
         $this->output_data = [
-            'update_id' => isset($input['update_id']) ? $input['update_id'] : 0,
-            'message_id' => $this->getMessageID($type),
-            'message_text' => $this->getMessageText($type),
-            'chat' => '',
-            'type' => $type,
-            'from' => '',
-            'date' => '',
-            'text' => $this->getText($type)
+            'update_id'     => isset($input['update_id']) ? $input['update_id'] : 0,
+            'message_id'    => $this->getMessageID($type),
+            'message_text'  => $this->getMessageText($type),
+            'chat'          => '',
+            'type'          => $type,
+            'from'          => '',
+            'date'          => '',
+            'text'          => $this->getText($type)
         ];
-
         $tmp = [];
         switch ($type) {
             case self::MESSAGE:
@@ -473,15 +602,12 @@ class TelegramBotService
                 $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($this->output_data), true);
                 exit;
         }
-
         foreach ($tmp as $key => $value) {
             $this->output_data[$key] = $value;
         }
-
         if ( ! empty($this->output_data['date'])) {
             $this->output_data['date'] = date('Y/m/d H:i:s', $tmp['date']);
         }
-        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($this->output_data));
         return $this->output_data;
     }
 
@@ -601,8 +727,6 @@ class TelegramBotService
             $this->left_chat_member = $input['left_chat_member'];
             $output['left_chat_member'] = true;
         }
-
-        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output));
         return $output;
     }
 
@@ -625,27 +749,21 @@ class TelegramBotService
         ];
         if ( ! isset($input[$type]) || empty($input[$type])) {
             $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' type : ' . json_encode($type), true);
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . json_encode($input), true);
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . var_export($input, true));
             return $output;
         }
         $output = $this->mergeItems($input[$type], ['message_id'=>'id','date'=>'date','text'=>'text'], $output);
-
         $member = $this->parseMember($input[$type]);
         $output = $this->mergeItems($member , ['id'=>'member_id','from'=>'from'], $output);
-
         $chat = $this->parseChat($input[$type], 'chat');
         $output = $this->mergeItems($chat , ['id'=>'chat_id','title'=>'chat_name'], $output);
-
         if (empty($output['chat_name']) && isset($this->chats[$chat['id']]['title'])) {
             $output['chat_name'] = $this->chats[$chat['id']]['title'];
         }
-
         if (isset($input[$type]['sender_chat']) && ! empty($input[$type]['sender_chat'])) {
             $this->parseChat($input[$type], 'sender_chat');
         }
-
         $this->parseOtherMember($input[$type], $chat['id']);
-
         if ( ! empty($input[$type]['new_chat_photo'])) {
             foreach ($input[$type]['new_chat_photo'] as $photo) {
                 // Todo
@@ -656,143 +774,7 @@ class TelegramBotService
             $reply_to_message = $this->parseMessage($input[$type], 'reply_to_message');
             $output['text'] = $reply_to_message['text'].' => '.$output['text'];
         }
-        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output));
         return $output;
-    }
-
-    /**
-     * https://github.com/Eleirbag89/TelegramBotPHP/blob/master/Telegram.php
-     * Return current update type `False` on failure.
-     *
-     * @return bool|string
-     */
-    public function getUpdateType() {
-        $update = $this->input_data;
-        if (isset($update['inline_query'])) {
-            return self::INLINE_QUERY;
-        }
-        if (isset($update['callback_query'])) {
-            return self::CALLBACK_QUERY;
-        }
-        if (isset($update['edited_message'])) {
-            return self::EDITED_MESSAGE;
-        }
-        if (isset($update['message']['text'])) {
-            return self::MESSAGE;
-        }
-        if (isset($update['message']['photo'])) {
-            return self::PHOTO;
-        }
-        if (isset($update['message']['video'])) {
-            return self::VIDEO;
-        }
-        if (isset($update['message']['audio'])) {
-            return self::AUDIO;
-        }
-        if (isset($update['message']['voice'])) {
-            return self::VOICE;
-        }
-        if (isset($update['message']['contact'])) {
-            return self::CONTACT;
-        }
-        if (isset($update['message']['location'])) {
-            return self::LOCATION;
-        }
-        if (isset($update['message']['reply_to_message'])) {
-            return self::REPLY;
-        }
-        if (isset($update['message']['animation'])) {
-            return self::ANIMATION;
-        }
-        if (isset($update['message']['sticker'])) {
-            return self::STICKER;
-        }
-        if (isset($update['message']['document'])) {
-            return self::DOCUMENT;
-        }
-        if (isset($update['message']['new_chat_member'])) {
-            return self::NEW_CHAT_MEMBER;
-        }
-        if (isset($update['message']['left_chat_member'])) {
-            return self::LEFT_CHAT_MEMBER;
-        }
-        if (isset($update['channel_post'])) {
-            return self::CHANNEL_POST;
-        }
-        if (isset($update['my_chat_member'])) {
-            return 'my_chat_member';
-        }
-        return false;
-    }
-
-    /**
-     * @param string $type
-     * @return int
-     */
-    public function getMessageID($type) {
-        if ($type == self::CALLBACK_QUERY) {
-            return @$this->input_data['callback_query']['message']['message_id'];
-        }
-        if ($type == self::CHANNEL_POST) {
-            return @$this->input_data['channel_post']['message_id'];
-        }
-        if ($type == self::EDITED_MESSAGE) {
-            return @$this->input_data['edited_message']['message_id'];
-        }
-        return (int) $this->input_data['message']['message_id'];
-    }
-    /**
-     * @param string $type
-     * @return string
-     */
-    public function getMessageText($type) {
-        if ($type == self::CALLBACK_QUERY) {
-            return @$this->input_data['callback_query']['message']['text'];
-        }
-        if ($type == self::CHANNEL_POST) {
-            return @$this->input_data['channel_post']['text'];
-        }
-        if ($type == self::EDITED_MESSAGE) {
-            return @$this->input_data['edited_message']['text'];
-        }
-        return empty($this->input_data['message']['text']) ? '' : empty($this->input_data['message']['text']);
-    }
-
-    /**
-     * @param string $type
-     * @return string
-     */
-    public function getText($type) {
-        if ($type == self::CALLBACK_QUERY) {
-            return @$this->input_data['callback_query']['data'];
-        }
-        if ($type == self::CHANNEL_POST) {
-            return @$this->input_data['channel_post']['text'];
-        }
-        if ($type == self::EDITED_MESSAGE) {
-            return @$this->input_data['edited_message']['text'];
-        }
-        return @$this->input_data['message']['text'];
-    }
-
-    /**
-     * @param string $type
-     * @return int
-     */
-    public function getChatID($type) {
-        if ($type == self::CALLBACK_QUERY) {
-            return @$this->input_data['callback_query']['message']['chat']['id'];
-        }
-        if ($type == self::CHANNEL_POST) {
-            return @$this->input_data['channel_post']['chat']['id'];
-        }
-        if ($type == self::EDITED_MESSAGE) {
-            return @$this->input_data['edited_message']['chat']['id'];
-        }
-        if ($type == self::INLINE_QUERY) {
-            return @$this->input_data['inline_query']['from']['id'];
-        }
-        return (int) $this->input_data['message']['chat']['id'];
     }
 
     /**
@@ -801,37 +783,38 @@ class TelegramBotService
      * @return array
      */
     public function parseMyChatMember($input, $type = 'my_chat_member') {
-        $output = ['id'=>'','chat_id'=>'','member_id'=> '','from'=>'','date'=>'','text'=>''];
+        $output = [
+            'id'        => '',
+            'chat_id'   => '',
+            'member_id' => '',
+            'from'      => '',
+            'date'      => '',
+            'text'      => '',
+            'bot_name'  => $this->BotName
+        ];
         if ( ! isset($input[$type]) || empty($input[$type])) {
             $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' type : ' . json_encode($type), true);
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . json_encode($input), true);
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . var_export($input, true));
             return $output;
         }
         $output = $this->mergeItems($input[$type] , ['id'=>'id','date'=>'date','text'=>'text'], $output);
-
         $member = $this->parseMember($input[$type], 'from');
         $output = $this->mergeItems($member , ['id'=>'member_id','from'=>'from'], $output);
-
         $chat = $this->parseChat($input[$type], 'chat');
         $output = $this->mergeItems($chat , ['id'=>'chat_id'], $output);
-
         if (isset($input[$type]['sender_chat']) && ! empty($input[$type]['sender_chat'])) {
             $this->parseChat($input[$type], 'sender_chat');
         }
-
         $this->parseOtherMember($input[$type], $chat['id']);
-
         if (isset($input[$type]['new_chat_photo']) && ! empty($input[$type]['new_chat_photo'])) {
             foreach ($input[$type]['new_chat_photo'] as $photo) {
                 // $output['text'] .= $photo['file_id'];
             }
         }
-
         if (isset($input[$type]['reply_to_message']) && ! empty($input[$type]['reply_to_message'])) {
             $reply_to_message = $this->parseMessage($input[$type], 'reply_to_message');
             $output['text'] = $reply_to_message['text'].' => '.$output['text'];
         }
-        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output));
         return $output;
     }
 
@@ -843,19 +826,19 @@ class TelegramBotService
      */
     public function parseCallbackQuery($input, $type = self::CALLBACK_QUERY) {
         $output = [
-            'id' => '',
-            'chat_id' => $this->getChatID($type),
-            'member_id' => '',
-            'from' => '',
-            'date' => '',
-            'text' => '',
-            'message_id' => $this->getMessageID($type),
-            'message_text' => $this->getMessageText($type),
-            'bot_name' => $this->BotName
+            'id'            => '',
+            'chat_id'       => $this->getChatID($type),
+            'member_id'     => '',
+            'from'          => '',
+            'date'          => '',
+            'text'          => '',
+            'message_id'    => $this->getMessageID($type),
+            'message_text'  => $this->getMessageText($type),
+            'bot_name'      => $this->BotName
         ];
         if ( ! isset($input[$type]) && empty($input[$type])) {
             $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' type : ' . json_encode($type), true);
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . json_encode($input), true);
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . var_export($input, true));
             return $output;
         }
         $output = $this->mergeItems($input[$type], ['id'=>'id','data'=>'text'], $output);
@@ -863,7 +846,6 @@ class TelegramBotService
         $output = $this->mergeItems($member , ['id'=>'member_id','from'=>'from'], $output);
         $this->parseMessage($input[$type]);
         $this->callback_queries[$output['chat_id']][$output['member_id']][$output['text']] = $output;
-        $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . json_encode($output), true);
         return $output;
     }
 
@@ -877,7 +859,7 @@ class TelegramBotService
         $output = ['id'=>'','chat_id'=>'','member_id'=> '','from'=>'','date'=>'','text'=>''];
         if ( ! isset($input[$type]) || empty($input[$type])) {
             $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' type : ' . json_encode($type), true);
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . json_encode($input), true);
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . var_export($input, true));
             return $output;
         }
         $output = $this->mergeItems($input[$type], ['id'=>'id','date'=>'date'], $output);
