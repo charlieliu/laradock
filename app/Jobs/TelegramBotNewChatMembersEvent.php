@@ -11,7 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 use App\Services\TelegramBotService;
 
-class TelegramBotNewChatMembersEvent implements ShouldQueue
+class TelegramBotNewChatMembersEvent implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 

@@ -11,7 +11,8 @@
         "laravel/framework": "^8.75",
         "laravel/sanctum": "^2.11",
         "laravel/tinker": "^2.5",
-        "longman/telegram-bot": "*"
+        "longman/telegram-bot": "*",
+        "pda/pheanstalk": "^4.0"
     },
     "require-dev": {
         "facade/ignition": "^2.5",

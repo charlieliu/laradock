@@ -47,31 +47,39 @@ class TelegramBot extends Command
      * @return int
      */
     public function handle() {
-        $this->service->logInfo(__METHOD__, 'START(' . date('Y-m-d H:i:s') . ') ', true);
         $live_start = microtime(true);
         $bots = $this->service->bots();
         $done = 0;
+        $cache_time = 0;
+        $cache_start = microtime(true);
         $ok = true;
+        foreach ($bots as $bot) {
+            Cache::forget($bot['username']);
+        }
         do {
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' START(' . date('Y-m-d H:i:s') . ') ', true);
             foreach ($bots as $bot) {
-                $time_start = microtime(true);
-
-                if ($done < count($bots)) {
-                    Cache::forget($bot['username']);
-                }
-
                 if ( ! Cache::has($bot['username'])){
-                    $this->service->logInfo(__METHOD__, 'Bot ['.$bot['username'].'] START(' . date('Y-m-d H:i:s') . ') ', true);
+                    $time_start = microtime(true);
                     dispatch(new TelegramBotGetUpdate($bot));
-
                     $time_end = microtime(true);
-                    $this->service->logInfo(__METHOD__, 'Bot ['.$bot['username'].'] END(' . date('Y-m-d H:i:s') . ') ', true);
-                    $this->service->logInfo(__METHOD__, 'Bot ['.$bot['username'].'] USED(' . ($time_end - $time_start) . ') ', true);
-                    $done++;
+                    $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Bot ['.$bot['username'].'] USED(' . ($time_end - $time_start) . ') ', true);
                 }
             }
+            sleep(1);
+            $done++;
             $live_end = microtime(true);
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' DONE(' . $done . ') LIVE '.($live_end - $live_start) . ' s', true);
+            if ($cache_time > 600) {
+                foreach ($bots as $bot) {
+                    Cache::forget($bot['username']);
+                }
+                $cache_time = 0;
+                $cache_start = microtime(true);
+            } else {
+                $cache_time += ($live_end - $cache_start);
+            }
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Cache LIVE '. ($cache_time) . ' s', true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' DONE(' . $done . ') LIVE '. ($live_end - $live_start) . ' s', true);
         } while ($ok === true);
     }
 }

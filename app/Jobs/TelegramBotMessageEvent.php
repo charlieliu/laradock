@@ -11,7 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 use App\Services\TelegramBotService;
 
-class TelegramBotMessageEvent implements ShouldQueue
+class TelegramBotMessageEvent implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -39,7 +39,7 @@ class TelegramBotMessageEvent implements ShouldQueue
     public function handle() {
         $this->service->logInfo(__METHOD__, 'START');
         if (empty($this->message)) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR message : ' . json_encode($this->message), true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR message : ' . var_export($this->message, true), true);
             return;
         }
 
@@ -53,15 +53,15 @@ class TelegramBotMessageEvent implements ShouldQueue
 
         if ( ! empty($bots[$this->message['member_id']])) {
             // message from bot self
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' bot\'s message : ' . json_encode($this->message));
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' bot\'s message : ' . var_export($this->message, true));
             return;
         }
         if ($this->message['chat_id'] == $this->message['member_id']) {
             // message from private group
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' private group message : ' . json_encode($this->message));
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' private group message : ' . var_export($this->message, true));
         }
 
-        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' message : ' . json_encode($this->message));
+        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' message : ' . var_export($this->message, true));
 
         $BotName = ! empty($this->message['bot_name']) ? $this->message['bot_name'] : 'CharlieLiu_bot';
         $this->service->getToken($BotName);

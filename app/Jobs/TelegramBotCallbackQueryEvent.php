@@ -11,7 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 use App\Services\TelegramBotService;
 
-class TelegramBotCallbackQueryEvent implements ShouldQueue
+class TelegramBotCallbackQueryEvent implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -86,6 +86,18 @@ class TelegramBotCallbackQueryEvent implements ShouldQueue
                 ]);
                 $this->_editMessage($callback, $text, $reply_markup);
                 break;
+            case '/deposit':    // Wallet > Deposit
+            case '/withdraw':   // Wallet > Withdraw
+                $text = 'Please select a crypto currency.';
+                $reply_markup = json_encode([
+                    'inline_keyboard' => [
+                        [['text'=>'BTC','callback_data'=>$data.'_btc']],
+                        [['text'=>'ETH','callback_data'=>$data.'_eth']],
+                        [['text'=>'Back','callback_data'=>'/Wallet']]
+                    ],
+                ]);
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
             case '/subscriptions':
                 $text = 'Chat message subscription, not related to trading business.';
                 $this->_editMessage($callback, $text, $reply_markup);
@@ -99,17 +111,25 @@ class TelegramBotCallbackQueryEvent implements ShouldQueue
                 ]);
                 $this->_editMessage($callback, $text, $reply_markup);
                 break;
-            case '/buy':
-            case '/sell':
-            case '/deposit':
-            case '/withdraw':
+            case '/buy':        // Market > Buy
+            case '/sell':       // Market > Sell
+                $text = 'Please select a crypto currency.';
+                $reply_markup = json_encode([
+                    'inline_keyboard' => [
+                        [['text'=>'BTC','callback_data'=>$data.'_btc']],
+                        [['text'=>'ETH','callback_data'=>$data.'_eth']],
+                        [['text'=>'Back','callback_data'=>'/Market']]
+                    ],
+                ]);
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
             case '/pay':
                 $text = 'Please select a crypto currency.';
                 $reply_markup = json_encode([
                     'inline_keyboard' => [
                         [['text'=>'BTC','callback_data'=>$data.'_btc']],
                         [['text'=>'ETH','callback_data'=>$data.'_eth']],
-                        [['text'=>'Back','callback_data'=>'/'.$data]]
+                        [['text'=>'Back','callback_data'=>'/Start']]
                     ],
                 ]);
                 $this->_editMessage($callback, $text, $reply_markup);

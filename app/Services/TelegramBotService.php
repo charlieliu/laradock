@@ -250,11 +250,11 @@ class TelegramBotService
             }
 
             $time_end = microtime(true);
-            $this->logInfo(__METHOD__, 'END');
-            $this->logInfo(__METHOD__, 'USED '.($time_end - $time_start) . ' s');
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END');
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' USED '.($time_end - $time_start) . ' s');
             return $rs;
         } catch (\Longman\TelegramBot\Exception\TelegramException $e) {
-            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' ERROR '. json_encode($e->getMessage()), true);
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR '. json_encode($e->getMessage()), true);
         }
     }
 
@@ -265,12 +265,12 @@ class TelegramBotService
      */
     public function sendMessage($input = []) {
         $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'START ' . json_encode($input));
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' START ' . json_encode($input));
 
         $rs = Request::sendMessage($input);
 
         $time_end = microtime(true);
-        $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END / USED '.($time_end - $time_start) . ' s');
         return $rs;
     }
 
@@ -281,17 +281,17 @@ class TelegramBotService
      */
     public function editMessageText($input = []) {
         $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'START ' . json_encode($input));
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' START ' . json_encode($input));
 
         $sendResult = Request::send('editMessageText', $input);
         if ($sendResult->isOk()) {
-            $this->logInfo(__METHOD__, 'Edit message text to: ' . $input['chat_id']);
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' Edit message text to: ' . $input['chat_id']);
         } else {
-            $this->logInfo(__METHOD__, 'Sorry message not deleted to: ' . $input['chat_id']);
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' Sorry message not deleted to: ' . $input['chat_id']);
         }
 
         $time_end = microtime(true);
-        $this->logInfo(__METHOD__, 'END / USED '.($time_end - $time_start) . ' s');
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END / USED '.($time_end - $time_start) . ' s');
         return $sendResult;
     }
 
