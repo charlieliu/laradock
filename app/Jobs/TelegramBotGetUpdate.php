@@ -17,6 +17,7 @@ class TelegramBotGetUpdate implements ShouldQueue
 
     private $service;
     private $bot = [];
+    private $logHead = '';
 
     /**
      * Create a new job instance.
@@ -42,18 +43,20 @@ class TelegramBotGetUpdate implements ShouldQueue
             $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR bot : ' . var_export($this->bot, true), true);
             return;
         }
-        $BotName = $this->bot['username'];
         $this->bot['startAt'] = date('Y-m-d H:i:s');
-        $worker = Cache::get($BotName);
+        $this->logHead = ' ['.$this->bot['username'].'] - '.$this->bot['startAt'];
+        $worker = Cache::get($this->bot['username']);
         if ( ! empty($worker)) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' worker ['.$BotName.'] '.var_export($worker, true), true);
+            // $worker = json_decode($worker, true);
+            // $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' worker exist', true);
             return;
         }
-        Cache::put($BotName, json_encode($this->bot));
-        $this->service->getToken($BotName);
-        $rs = $this->service->runGetUpdates($BotName, $timeout);
+        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' START', true);
+        Cache::put($this->bot['username'], json_encode($this->bot));
+        $this->service->getToken($this->bot['username']);
+        $rs = $this->service->runGetUpdates($this->bot['username'], $timeout);
         if ($rs !== false && $rs->ok === true ) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.var_export($rs, true), true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' '.var_export($rs, true), true);
             $result = ! empty($rs->result) ? (array) $rs->result : [];
             $this->service->parseResult($result);
             foreach ($this->service->messages as $message) {
@@ -72,17 +75,18 @@ class TelegramBotGetUpdate implements ShouldQueue
                 }
             }
             $time_end = microtime(true);
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Bot ['.$BotName.'] USED '.($time_end - $time_start) . ' s', true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' USED '.($time_end - $time_start) . ' s', true);
         } else {
+            Cache::forget($this->bot['username']);
             $time_end = microtime(true);
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Bot ['.$BotName.'] ERROR USED '.($time_end - $time_start) . ' s', true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' ERROR '.($time_end - $time_start) . ' s', true);
         }
-        Cache::forget($BotName);
+        Cache::forget($this->bot['username']);
     }
 
     public function messageEvent($message) {
         if (empty($message)) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR message : ' . var_export($message, true), true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' ERROR message : ' . var_export($message, true), true);
             return;
         }
         $bots = [];
@@ -94,10 +98,10 @@ class TelegramBotGetUpdate implements ShouldQueue
         }
         if ( ! empty($bots[$message['member_id']])) {
             // message from bots
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' bot\'s message : ' . var_export($message, true));
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' bot\'s message : ' . var_export($message, true));
             return;
         }
-        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' message : ' . var_export($message, true));
+        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' message : ' . var_export($message, true));
         $text = ! empty($message['text']) ? strtolower($message['text']) : '';
         if ( ! empty($text) && ! empty($message['chat_id'])) {
             if (strpos($text, 'are you bot') !== false ) {
@@ -131,7 +135,7 @@ class TelegramBotGetUpdate implements ShouldQueue
 
     public function newChatMembersEvent($member) {
         if (empty($member) || empty($member['id']) || empty($member['chat_id'])) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR member : ' . var_export($member, true));
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' ERROR member : ' . var_export($member, true));
             return;
         }
         $bots = [];
@@ -143,10 +147,10 @@ class TelegramBotGetUpdate implements ShouldQueue
         }
         if ( ! empty($bots[$member['id']])) {
             // event from bots
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' bot\'s event : ' . var_export($member, true));
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' bot\'s event : ' . var_export($member, true));
             return;
         }
-        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' member : ' . var_export($member, true), true);
+        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' member : ' . var_export($member, true), true);
         // set all permissions false
         $this->service->restrictChatMember($member, false);
         $text = '';
@@ -170,9 +174,9 @@ class TelegramBotGetUpdate implements ShouldQueue
         ];
         $sendResult = $this->service->sendMessage($data);
         if ( ! empty($sendResult) && $sendResult['ok'] === true) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Message sent to: ' . $member['chat_id']);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' Message sent to: ' . $member['chat_id']);
         } else {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' Sorry message not sent to: ' . $member['chat_id']);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' Sorry message not sent to: ' . $member['chat_id']);
         }
     }
 
@@ -182,14 +186,14 @@ class TelegramBotGetUpdate implements ShouldQueue
             || empty($callback['member_id'])
             || empty($callback['message_id'])
             || empty($callback['text'])) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR callback : ' . var_export($callback, true), true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' ERROR callback : ' . var_export($callback, true), true);
             return;
         }
-        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' callback : ' . var_export($callback, true), true);
+        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' callback : ' . var_export($callback, true), true);
         $data = strtolower($callback['text']);
-        $text  = 'Buy, sell, store and pay with cryptocurrency whenever you want.\n';
-        $text .= '\n';
-        $text .= '⚠️ This is the testnet version of @' . $this->bot['username'];
+        $text  = "Buy, sell, store and pay with cryptocurrency whenever you want.\n";
+        $text .= "\n";
+        $text .= "⚠️ This is the testnet version of @" . $this->bot['username'];
         $reply_markup = json_encode([
             'inline_keyboard' => [
                 [['text'=>'Back','callback_data'=>'/Start']]
@@ -283,9 +287,9 @@ class TelegramBotGetUpdate implements ShouldQueue
                 $this->_editMessage($callback, $text, $reply_markup);
                 break;
             case '/exchange':
-                $text  = '🐬 Here you can exchange cryptocurrencies using limit orders that executed automatically.';
-                $text .= '\n\n';
-                $text .= '🪐 Create your order to start. 0.75% fee for takers and 0.5% fee for makers.';
+                $text  = "🐬 Here you can exchange cryptocurrencies using limit orders that executed automatically.\n";
+                $text .= "\n";
+                $text .= "🪐 Create your order to start. 0.75% fee for takers and 0.5% fee for makers.";
                 $reply_markup = json_encode([
                     'inline_keyboard' => [
                         [['text'=>'Exchange Now','callback_data'=>'/do_exchange']],
@@ -296,11 +300,11 @@ class TelegramBotGetUpdate implements ShouldQueue
                 $this->_editMessage($callback, $text, $reply_markup);
                 break;
             case '/do_exchange': // Exchange > Exchange Now
-                $text  = 'Choose cryptocurrencies you want to exchange\.';
+                $text  = 'Choose cryptocurrencies you want to exchange.';
                 $reply_markup = json_encode([
                     'inline_keyboard' => [
-                        [['text'=>'BTC\/USDT','callback_data'=>$data.'_btc']],
-                        [['text'=>'ETH\/USDT','callback_data'=>$data.'_eth']],
+                        [['text'=>'BTC/USDT','callback_data'=>$data.'_btc']],
+                        [['text'=>'ETH/USDT','callback_data'=>$data.'_eth']],
                         [['text'=>'Back','callback_data'=>'/exchange']]
                     ],
                 ]);
@@ -325,8 +329,8 @@ class TelegramBotGetUpdate implements ShouldQueue
      */
     private function _editMessage($callback, $text, $reply_markup = '') {
         if ($callback['message_text'] != $text) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' editMessageText callback : ' . var_export($callback, true), true);
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' editMessageText text : ' . var_export($text, true), true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' editMessageText callback : ' . var_export($callback, true), true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' editMessageText text : ' . var_export($text, true), true);
             $data = [
                 'chat_id'       => $callback['chat_id'],
                 'message_id'    => $callback['message_id'],
@@ -338,6 +342,7 @@ class TelegramBotGetUpdate implements ShouldQueue
             }
             $this->service->editMessageText($data);
         } else if ( ! empty($reply_markup)) {
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' editMessageReplyMarkup : ' . var_export($reply_markup, true), true);
             $this->service->editMessageReplyMarkup([
                 'chat_id'       => $callback['chat_id'],
                 'message_id'    => $callback['message_id'],

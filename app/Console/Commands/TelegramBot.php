@@ -49,27 +49,21 @@ class TelegramBot extends Command
     public function handle() {
         $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' START(' . date('Y-m-d H:i:s') . ') ', true);
         $bots = $this->service->bots();
-        $cache_time = 0;
-        $cache_start = microtime(true);
-        $ok = true;
         foreach ($bots as $bot) {
             Cache::forget($bot['username']);
         }
+        $ok = true;
         do {
             foreach ($bots as $bot) {
+                $worker = Cache::get($bot['username']);
+                if ( ! empty($worker)) {
+                    // $worker = json_decode($worker, true);
+                    // $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$bot['username'].'] worker start at '.var_export($worker['startAt'], true), true);
+                    continue;
+                }
                 dispatch(new TelegramBotGetUpdate($bot));
             }
             sleep(1);
-            $live_end = microtime(true);
-            if ($cache_time > 60) {
-                foreach ($bots as $bot) {
-                    Cache::forget($bot['username']);
-                }
-                $cache_time = 0;
-                $cache_start = microtime(true);
-            } else {
-                $cache_time += ($live_end - $cache_start);
-            }
         } while ($ok === true);
     }
 }

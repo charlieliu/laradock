@@ -3,7 +3,6 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Longman\TelegramBot\Request;
 use Longman\TelegramBot\Telegram;
 
 /**
@@ -84,13 +83,15 @@ class TelegramBotService
      */
     private function _cURL($url, $data=[], &$error) {
         $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' cURL url '.var_export($url, true).' cURL data '.var_export($data, true));
+        $query = http_build_query($data);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' cURL url '.var_export($url, true).' data '.var_export($data, true));
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' cURL query '.var_export($query, true));
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);// 這裡略過檢查 SSL 憑證有效性
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $query);
         $output = curl_exec($ch);
         $error = curl_error($ch);
         $info = curl_getinfo($ch);
@@ -409,14 +410,13 @@ class TelegramBotService
      */
     public function runGetUpdates($BotName, $hold = 1) {
         $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'START');
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] START');
 
         $ApiKey = $this->getToken($BotName);
 
         try {
             // Create Telegram API object
             $this->telegram = new \Longman\TelegramBot\Telegram($ApiKey, $BotName);
-
             // Enable MySQL
             $this->telegram->enableMySql([
                 'host'     => env('DB_HOST'),
@@ -425,19 +425,17 @@ class TelegramBotService
                 'database' => env('DB_DATABASE'),
                 'password' => env('DB_PASSWORD')
             ])->useGetUpdatesWithoutDatabase(false);
-
             // Get Telegram data set timeout $hold
             $rs = $this->telegram->handleGetUpdates(null, $hold);
+            $time_end = microtime(true);
             if ( ! isset($rs->ok) || $rs->ok !== true) {
+                $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] ERROR '.var_export($rs, true).' USED '.($time_end - $time_start) . ' s');
                 return false;
             }
-
-            $time_end = microtime(true);
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END');
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' USED '.($time_end - $time_start) . ' s');
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] END '.var_export($rs, true).' USED '.($time_end - $time_start) . ' s');
             return $rs;
         } catch (\Longman\TelegramBot\Exception\TelegramException $e) {
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR '. json_encode($e->getMessage()), true);
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] ERROR '. json_encode($e->getMessage()), true);
         }
     }
 
