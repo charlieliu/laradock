@@ -1,15 +1,10 @@
 <?php
-
 namespace App\Console\Commands;
-
 use Illuminate\Console\Command;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Support\Facades\Cache;
-
 use App\Services\TelegramBotService;
-
 use App\Jobs\TelegramBotGetUpdate;
-
 class TelegramBot extends Command
 {
     use DispatchesJobs;
@@ -50,12 +45,12 @@ class TelegramBot extends Command
         $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' START(' . date('Y-m-d H:i:s') . ') ', true);
         $bots = $this->service->bots();
         foreach ($bots as $bot) {
-            Cache::forget($bot['username']);
+            Cache::forget('worker:'.$bot['username']);
         }
         $ok = true;
         do {
             foreach ($bots as $bot) {
-                $worker = Cache::get($bot['username']);
+                $worker = Cache::get('worker:'.$bot['username']);
                 if ( ! empty($worker)) {
                     // $worker = json_decode($worker, true);
                     // $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$bot['username'].'] worker start at '.var_export($worker['startAt'], true), true);
