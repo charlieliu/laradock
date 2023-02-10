@@ -36,23 +36,25 @@ class TelegramBotGetUpdate implements ShouldQueue
      * @return void
      */
     public function handle() {
-        $timeout = 10;
-        $limit = 100;
         if (empty($this->bot) || empty($this->bot['username'])) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR bot : ' . var_export($this->bot, true), true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR bot : ' . var_export($this->bot, true));
             return;
         }
-        $this->service->logHead = ' ['.$this->bot['username'].']';
         $worker = Cache::get('worker:'.$this->bot['username']);
         if ( ! empty($worker)) {
-            // $worker = json_decode($worker, true);
-            // $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' worker exist', true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' worker : ' . var_export($worker, true));
             return;
         }
-        $this->bot['startAt'] = date('Y-m-d H:i:s');
-        $this->service->logHead = ' ['.$this->bot['username'].'] - '.$this->bot['startAt'];
         Cache::put('worker:'.$this->bot['username'], json_encode($this->bot));
-        $this->service->readGetUpdates($this->bot['username'], $limit, $timeout);
+        $this->service->logHead = ' ['.$this->bot['username'].'] - '.$this->bot['startAt'];
+        $result = $this->service->readGetUpdates($this->bot['username'], 10, 30);
+        $done = count($result);
+        $this->bot['done'] += $done;
+        $this->bot['endAt'] = date('Y-m-d H:i:s');
+        if ( ! empty($done)) {
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' bot : ' . var_export($this->bot, true));
+        }
         Cache::forget('worker:'.$this->bot['username']);
+        dispatch(new TelegramBotGetUpdate($this->bot));
     }
 }

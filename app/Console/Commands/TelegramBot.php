@@ -42,23 +42,12 @@ class TelegramBot extends Command
      * @return int
      */
     public function handle() {
-        $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' START(' . date('Y-m-d H:i:s') . ') ', true);
         $bots = $this->service->bots();
         foreach ($bots as $bot) {
+            $bot['startAt'] = date('Y-m-d H:i:s');
+            $bot['done'] = 0;
             Cache::forget('worker:'.$bot['username']);
+            dispatch(new TelegramBotGetUpdate($bot));
         }
-        $ok = true;
-        do {
-            foreach ($bots as $bot) {
-                $worker = Cache::get('worker:'.$bot['username']);
-                if ( ! empty($worker)) {
-                    // $worker = json_decode($worker, true);
-                    // $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$bot['username'].'] worker start at '.var_export($worker['startAt'], true), true);
-                    continue;
-                }
-                dispatch(new TelegramBotGetUpdate($bot));
-            }
-            sleep(1);
-        } while ($ok === true);
     }
 }

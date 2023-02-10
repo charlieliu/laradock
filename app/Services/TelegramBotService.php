@@ -11,6 +11,7 @@ use App\Models\Message;
 use App\Models\User;
 use App\Models\Chat;
 use App\Models\UserChat;
+use Illuminate\Filesystem\Cache as FilesystemCache;
 
 /**
  * Class TelegramBotService
@@ -538,18 +539,16 @@ class TelegramBotService
             }
         }
         foreach ($this->callback_queries as $chat_callback) {
-            foreach ($chat_callback as $member_callback) {
-                foreach ($member_callback as $callback) {
-                    $this->callbackEvent($callback);
-                }
+            foreach ($chat_callback as $callback) {
+                $this->callbackEvent($callback);
             }
         }
         // foreach ($this->chats as $chat) {
         //     $this->updateChat($chat);
         // }
-        // foreach ($this->members as $member) {
-        //     $this->updateUser($member);
-        // }
+        foreach ($this->members as $member) {
+            $this->updateUser($member);
+        }
         // $user_chat = new UserChat();
         // foreach ($this->chat_members as $chat_id => $chat_members) {
         //     if (empty($chat_id)) {
@@ -603,12 +602,12 @@ class TelegramBotService
             case self::CHANNEL_POST:
                 $tmp = $this->parseMessage($input, $type);
                 break;
-            case 'my_chat_member':
-                $tmp = $this->parseMyChatMember($input, $type);
-                break;
             case self::CALLBACK_QUERY:
                 $tmp = $this->parseCallbackQuery($input, $type);
                 break;
+            case 'my_chat_member':
+                // $tmp = $this->parseMyChatMember($input, $type);
+                // break;
             default:
                 $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' output : ' . var_export($this->output_data, true));
                 break;
@@ -750,7 +749,7 @@ class TelegramBotService
     public function parseMessage($input, $type = 'message') {
         $output = [
             'id'            => '',
-            'chat_id'       => '',
+            'chat_id'       => $this->getChatID($type),
             'chat_name'     => '',
             'message_id'    => '',
             'message_text'  => $this->getMessageText($type),
@@ -797,7 +796,7 @@ class TelegramBotService
     public function parseMyChatMember($input, $type = 'my_chat_member') {
         $output = [
             'id'        => '',
-            'chat_id'   => '',
+            'chat_id'   => $this->getChatID($type),
             'member_id' => '',
             'from'      => '',
             'date'      => '',
@@ -857,7 +856,7 @@ class TelegramBotService
         $member = $this->parseMember($input[$type], 'from');
         $output = $this->mergeItems($member , ['id'=>'member_id','from'=>'from'], $output);
         // $this->parseMessage($input[$type]);
-        $this->callback_queries[$output['chat_id']][$output['member_id']][$output['text']] = $output;
+        $this->callback_queries[$output['chat_id']][$output['message_id']] = $output;
         return $output;
     }
 
@@ -868,7 +867,7 @@ class TelegramBotService
      * @return array
      */
     public function parsePoll($input, $type = 'poll') {
-        $output = ['id'=>'','chat_id'=>'','member_id'=> '','from'=>'','date'=>'','text'=>''];
+        $output = ['id'=>'','chat_id'=>$this->getChatID($type),'member_id'=> '','from'=>'','date'=>'','text'=>''];
         if ( ! isset($input[$type]) || empty($input[$type])) {
             $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' type : ' . json_encode($type), true);
             $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : ' . var_export($input, true));
@@ -962,33 +961,26 @@ class TelegramBotService
      */
     public function readGetUpdates($BotName, $limit = 100, $timeout = 0) {
         $output = [];
-        $worker = Cache::get('worker:'.$BotName);
-        if ( ! empty($worker)) {
-            // $worker = json_decode($worker, true);
-            // $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' worker exist');
-            return $output;
-        }
         $time_start = microtime(true);
         $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] START');
         $this->getToken($BotName);
-        $run = true;
-        while ($run === true) {
-            $this->last_update_id++;
-            $response = $this->getUpdates($this->last_update_id, $limit, $timeout);
-            $timeout = 0;
-            $limit = 1;
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' response '.var_export($response, true));
+        $response = $this->getUpdates($this->last_update_id, $limit, $timeout);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' response '.var_export($response, true));
+        $result = ! empty($response['result']) ? (array) $response['result'] : [];
+        if ( ! empty($result)) {
+            $list = $this->parseResult($result);
+            $output += $list;
+            // update telegram last_update_id
+            $response = $this->getUpdates($this->last_update_id+1, 1, 0);
             $result = ! empty($response['result']) ? (array) $response['result'] : [];
             if ( ! empty($result)) {
                 $list = $this->parseResult($result);
                 $output += $list;
-            } else {
-                $run = false;
             }
         }
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' output '.var_export($output, true));
         $time_end = microtime(true);
         $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' USED '.($time_end - $time_start) . ' s', true);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' output '.var_export($output, true));
         return $output;
     }
 
@@ -1108,22 +1100,34 @@ class TelegramBotService
             return;
         }
         $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' callback : ' . var_export($callback, true), true);
-        $data = strtolower($callback['text']);
-        $text  = "Buy, sell, store and pay with cryptocurrency whenever you want.\n";
-        $text .= "\n";
-        $text .= "⚠️ This is the testnet version of @" . $this->BotName;
+        $member = Cache::get('user:'.$callback['member_id']);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' member : ' . var_export($member, true), true);
+
+        $language_code = Cache::get('language_code:'.$callback['member_id']);
+        if (empty($language_code)) {
+            if (empty($member['language_code'])) {
+                $language_code = 'en';
+            } else {
+                $language_code = strpos('zh', $member['language_code']) !== false ? 'zh' : 'en';
+            }
+            Cache::put('language_code:'.$callback['member_id'], $language_code);
+        }
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' language_code : ' . var_export($language_code, true), true);
+
+        $lang = $this->_getLang($language_code);
+        $text  = $lang['default_text'];
         $reply_markup = [
             'inline_keyboard' => [
-                [['text'=>'Back','callback_data'=>'/Start']]
+                [['text'=>$lang['back'],'callback_data'=>'/start']]
             ],
         ];
-        if (strpos($data, '/un_mute') !== false) {
-            $explode = explode(':', $data);
-            $data = $explode[0];
-            $from_user = (int) $explode[1];
-        }
+
+        $data = strtolower($callback['text']);
+        $explode = explode(':', $data);
+        $data = $explode[0];
         switch ($data) {
             case '/un_mute':
+                $from_user = (int) $explode[1];
                 if ($from_user == $callback['member_id']) {
                     $this->restrictChatMember([
                         'id'        => $callback['member_id'],
@@ -1138,17 +1142,18 @@ class TelegramBotService
             case '/start':
                 $reply_markup = [
                     'inline_keyboard' => [
-                        [['text'=>'Wallet','callback_data'=>'/wallet'],['text'=>'Subscriptions','callback_data'=>'/subscriptions']],
-                        [['text'=>'Market','callback_data'=>'/market'],['text'=>'Exchange','callback_data'=>'/exchange']],
-                        [['text'=>'Checks','callback_data'=>'/checks'],['text'=>'Invoices','callback_data'=>'/invoices']],
-                        [['text'=>'Pay','callback_data'=>'/pay'],['text'=>'Contacts','callback_data'=>'/contacts']],
-                        [['text'=>'Settings','callback_data'=>'/settings']]
-                    ],
+                        // [['text'=>'Wallet','callback_data'=>'/wallet'],['text'=>'Subscriptions','callback_data'=>'/subscriptions']],
+                        // [['text'=>'Market','callback_data'=>'/market'],['text'=>'Exchange','callback_data'=>'/exchange']],
+                        // [['text'=>'Checks','callback_data'=>'/checks'],['text'=>'Invoices','callback_data'=>'/invoices']],
+                        // [['text'=>'Pay','callback_data'=>'/pay'],['text'=>'Contacts','callback_data'=>'/contacts']],
+                        [['text'=>$lang['wallet'],'callback_data'=>'/wallet']],
+                        [['text'=>$lang['settings'],'callback_data'=>'/settings']]
+                    ]
                 ];
                 $this->_editMessage($callback, $text, $reply_markup);
                 break;
             case '/wallet':
-                $text = "👛 Wallet\n\n";
+                $text = "👛 ".$lang['wallet']."\n\n";
                 $text .= "· Tether: 50 USDT ($50)\n\n";
                 $text .= "· Toncoin: 0 TON\n\n";
                 $text .= "· Bitcoin: 0 BTC\n\n";
@@ -1243,20 +1248,74 @@ class TelegramBotService
                 );
                 $reply_markup = [
                     'inline_keyboard' => [
-                        [['text'=>'Deposit','callback_data'=>'/deposit'],['text'=>'Withdraw','callback_data'=>'/withdraw']],
-                        [['text'=>'Back','callback_data'=>'/Start']]
+                        [['text'=>$lang['deposit'],'callback_data'=>'/deposit'],['text'=>$lang['withdraw'],'callback_data'=>'/withdraw']],
+                        [['text'=>$lang['back'],'callback_data'=>'/start']]
                     ],
                 ];
                 $this->_editMessage($callback, $text, $reply_markup, $entities);
                 break;
             case '/deposit':    // Wallet > Deposit
             case '/withdraw':   // Wallet > Withdraw
-                $text = 'Please select a crypto currency.';
+                $text = $lang['select_currency'];
                 $reply_markup = [
                     'inline_keyboard' => [
-                        [['text'=>'BTC','callback_data'=>$data.'_btc']],
-                        [['text'=>'ETH','callback_data'=>$data.'_eth']],
-                        [['text'=>'Back','callback_data'=>'/Market']]
+                        [['text'=>'BTC','callback_data'=>$data.':btc']],
+                        [['text'=>'ETH','callback_data'=>$data.':eth']],
+                        [['text'=>$lang['back_wallet'],'callback_data'=>'/wallet']]
+                    ],
+                ];
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
+            case '/settings':
+                $text  = "👤 Icky Maiasaura\n\n".$lang['your_language'].": ";
+                if ($language_code == 'zh') {
+                    $text .= $lang['language_zh'];
+                } else {
+                    $text .= $lang['language_en'];
+                }
+                $entities = array (
+                    array (
+                        'offset' => 3,
+                        'length' => 14,
+                        'type' => 'text_link',
+                        'url' => 'http://t.me/'.$this->BotName,
+                    ),
+                    array (
+                        'offset' => 3,
+                        'length' => 14,
+                        'type' => 'bold',
+                    ),
+                );
+                $reply_markup = [
+                    'inline_keyboard' => [
+                        // [['text'=>'Referral Program','callback_data'=>'/settings_referral']],
+                        // [['text'=>'Notifications','callback_data'=>'/settings_notifications']],
+                        [['text'=>$lang['language'],'callback_data'=>'/settings_language']],
+                        [['text'=>$lang['contact_us'],'url'=>'https://www.100ex.com/zh_CN/cms/contact%20us']],
+                        [['text'=>$lang['back'],'callback_data'=>'/Start']]
+                    ],
+                ];
+                $this->_editMessage($callback, $text, $reply_markup, $entities);
+                break;
+            case '/settings_language': // Settings > Language
+                $text  = 'Please choose a language.';
+                $reply_markup = [
+                    'inline_keyboard' => [
+                        [['text'=>$lang['language_zh'],'callback_data'=>'/set_language:zh']],[['text'=>$lang['language_en'],'callback_data'=>'/set_language:en']],
+                        [['text'=>$lang['back_settings'],'callback_data'=>'/settings']]
+                    ]
+                ];
+                $this->_editMessage($callback, $text, $reply_markup);
+                break;
+            case '/set_language': // Settings > Language > set language
+                $new_code = empty($explode[1]) || $explode[1] != 'zh' ? 'en' : 'zh';
+                $lang = $this->_getLang($new_code);
+                Cache::put('language_code:'.$callback['member_id'], $new_code);
+                $text  = $lang['default_text'];
+                $reply_markup = [
+                    'inline_keyboard' => [
+                        [['text'=>$lang['wallet'],'callback_data'=>'/wallet']],
+                        [['text'=>$lang['settings'],'callback_data'=>'/settings']]
                     ],
                 ];
                 $this->_editMessage($callback, $text, $reply_markup);
@@ -1321,15 +1380,49 @@ class TelegramBotService
                 ];
                 $this->_editMessage($callback, $text, $reply_markup);
                 break;
-            case '/settings':
-                $this->_editMessage($callback, $text, $reply_markup);
-                break;
             case '/checks':
             case '/invoices':
             case '/contacts':
                 $this->_editMessage($callback, $text, $reply_markup);
                 break;
         }
+    }
+
+    private function _getLang($language_code) {
+        if ($language_code == 'zh') {
+            return [
+                'default_text'      => "随时随地使用加密货币购买、出售、存储和支付。\n\n⚠️ 这是测试网版本 @" . $this->BotName,
+                'back'              => '返回',
+                'wallet'            => '钱包',
+                'deposit'           => '存币',
+                'withdraw'          => '提币',
+                'back_wallet'       => '返回钱包',
+                'select_currency'   => '选择币种',
+                'settings'          => '设置',
+                'language'          => '语言',
+                'back_settings'     => '返回设置',
+                'your_language'     => '你的语言',
+                'language_zh'       => "🇨🇳 中文",
+                'language_en'       => "🇺🇸 English",
+                'contact_us'        => '联系我们'
+            ];
+        }
+        return [
+            'default_text'      => "Buy, sell, store and pay with cryptocurrency whenever you want.\n\n⚠️ This is the testnet version of @" . $this->BotName,
+            'back'              => 'Back',
+            'wallet'            => 'Wallet',
+            'deposit'           => 'Deposit',
+            'withdraw'          => 'Withdraw',
+            'back_wallet'       => 'Back to Wallet',
+            'select_currency'   => 'Please select a crypto currency.',
+            'settings'          => 'Settings',
+            'language'          => 'Language',
+            'back_settings'     => 'Back to Settings',
+            'your_language'     => 'Your Language',
+            'language_zh'       => "🇨🇳 中文",
+            'language_en'       => "🇺🇸 English",
+            'contact_us'        => 'Contact Us'
+        ];
     }
 
     /**
