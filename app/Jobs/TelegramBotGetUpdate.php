@@ -45,7 +45,7 @@ class TelegramBotGetUpdate implements ShouldQueue
             $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' worker : ' . var_export($worker, true));
             return;
         }
-        Cache::put('worker:'.$this->bot['username'], json_encode($this->bot));
+        Cache::put('worker:'.$this->bot['username'], json_encode($this->bot), 600);
         $this->service->logHead = ' ['.$this->bot['username'].'] - '.$this->bot['startAt'];
         $result = $this->service->readGetUpdates($this->bot['username'], 10, 30);
         $done = count($result);

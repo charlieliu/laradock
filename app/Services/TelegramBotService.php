@@ -241,23 +241,15 @@ class TelegramBotService
     // ===================== cURL telegram api START ===================== //
 
     /**
-     * https://github.com/Eleirbag89/TelegramBotPHP/blob/bc0dd1d1e400b1d860b1fc111b988a25fa02857f/Telegram.php
-     */
-    public function endpoint($action, array $content) {
-        $url = 'https://api.telegram.org/bot'.$this->ApiKey.'/'.$action;
-        $reply = $this->_cURL($url, $content, $error);
-        return json_decode($reply, true);
-    }
-
-    /**
      * cURL 略過檢查 SSL 憑證有效性
      * @param string    $url
      * @param array     $data
      * @param string    $error
      * @return string
      */
-    private function _cURL($url, $data=[], &$error) {
+    private function _cURL($action, $data=[]) {
         $time_start = microtime(true);
+        $url = 'https://api.telegram.org/bot'.$this->ApiKey.'/'.$action;
         $query = http_build_query($data);
         $this->logInfo(__METHOD__, 'LINE '.__LINE__.' url '.var_export($url, true).' data '.var_export($data, true));
         $ch = curl_init();
@@ -270,15 +262,15 @@ class TelegramBotService
         $error = curl_error($ch);
         $info = curl_getinfo($ch);
         curl_close($ch);
-        $time_end = microtime(true);
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END '.var_export($output, true).' USED '.($time_end - $time_start).' s');
         if (empty($output)) {
             $this->logInfo(__METHOD__, 'LINE '.__LINE__.' error '. var_export($error, true));
             $this->logInfo(__METHOD__, 'LINE '.__LINE__.' info '. var_export($info, true));
-            $output = json_encode(
-                ['ok' => false, 'curl_error_code' => curl_errno($ch), 'curl_error' => curl_error($ch)]
-            );
+            $output = ['ok' => false, 'curl_error_code' => curl_errno($ch), 'curl_error' => curl_error($ch)];
+        } else {
+            $output = json_decode($output, true);
         }
+        $time_end = microtime(true);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END '.var_export($output, true).' USED '.($time_end - $time_start).' s');
         return $output;
     }
 
@@ -288,7 +280,7 @@ class TelegramBotService
      * @return object $rs
      */
     public function sendMessage($input = []) {
-        return $this->endpoint('sendMessage', $input);
+        return $this->_cURL('sendMessage', $input);
     }
 
     /**
@@ -297,7 +289,7 @@ class TelegramBotService
      * @return object $rs
      */
     public function editMessageText($input = []) {
-        return $this->endpoint('editMessageText', $input);
+        return $this->_cURL('editMessageText', $input);
     }
 
     /**
@@ -306,7 +298,7 @@ class TelegramBotService
      * @return object $rs
      */
     public function editMessageReplyMarkup($input = []) {
-        return $this->endpoint('editMessageReplyMarkup', $input);
+        return $this->_cURL('editMessageReplyMarkup', $input);
     }
 
     /**
@@ -315,7 +307,7 @@ class TelegramBotService
      * @return object $rs
      */
     public function deleteMessage($input = []) {
-        return $this->endpoint('deleteMessage', $input);
+        return $this->_cURL('deleteMessage', $input);
     }
 
     /**
@@ -327,7 +319,7 @@ class TelegramBotService
         if (empty($member['id']) || empty($member['chat_id'])) {
             return false;
         }
-        return $this->endpoint('restrictChatMember', [
+        return $this->_cURL('restrictChatMember', [
             'chat_id' => $member['chat_id'],
             'user_id' => $member['id'],
             'permissions' => json_encode([
@@ -352,7 +344,7 @@ class TelegramBotService
      */
     public function getUpdates($offset = 0, $limit = 100, $timeout = 0) {
         $content = ['offset' => $offset, 'limit' => $limit, 'timeout' => $timeout];
-        return $this->endpoint('getUpdates', $content);
+        return $this->_cURL('getUpdates', $content);
     }
 
 
@@ -1124,6 +1116,7 @@ class TelegramBotService
 
         $data = strtolower($callback['text']);
         $explode = explode(':', $data);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' explode : ' . var_export($explode, true), true);
         $data = $explode[0];
         switch ($data) {
             case '/un_mute':
@@ -1154,105 +1147,22 @@ class TelegramBotService
                 break;
             case '/wallet':
                 $text = "👛 ".$lang['wallet']."\n\n";
-                $text .= "· Tether: 50 USDT ($50)\n\n";
-                $text .= "· Toncoin: 0 TON\n\n";
-                $text .= "· Bitcoin: 0 BTC\n\n";
-                $text .= "· Ethereum: 0 ETH\n\n";
-                $text .= "· Binance Coin: 0 BNB\n\n";
-                $text .= "· Binance USD: 0 BUSD\n\n";
-                $text .= "· USD Coin: 0 USDC\n\n";
+                $text .= "· <a href='https://tether.to/'>Tether</a>: 50 USDT ($50)\n\n";
+                $text .= "· <a href='https://ton.org/'>Toncoin</a>: 0 TON\n\n";
+                $text .= "· <a href='https://bitcoin.org/'>Bitcoin</a>: 0 BTC\n\n";
+                $text .= "· <a href='https://ethereum.org/'>Ethereum</a>: 0 ETH\n\n";
+                $text .= "· <a href='https://binance.org/'>Binance Coin</a>: 0 BNB\n\n";
+                $text .= "· <a href='https://www.binance.com/en/busd'>Binance USD</a>: 0 BUSD\n\n";
+                $text .= "· <a href='https://www.centre.io/usdc'>USD Coin</a>: 0 USDC\n\n";
                 $text .= "≈ 0.00215923 BTC ($50)";
-                $entities =  array (
-                    array (
-                      'offset' => 3,
-                      'length' => 6,
-                      'type' => 'bold',
-                    ),
-                    array (
-                      'offset' => 13,
-                      'length' => 6,
-                      'type' => 'text_link',
-                      'url' => 'https://tether.to/',
-                    ),
-                    array (
-                      'offset' => 13,
-                      'length' => 6,
-                      'type' => 'bold',
-                    ),
-                    array (
-                      'offset' => 38,
-                      'length' => 7,
-                      'type' => 'text_link',
-                      'url' => 'https://ton.org/',
-                    ),
-                    array (
-                      'offset' => 38,
-                      'length' => 7,
-                      'type' => 'bold',
-                    ),
-                    array (
-                      'offset' => 56,
-                      'length' => 7,
-                      'type' => 'text_link',
-                      'url' => 'https://bitcoin.org/',
-                    ),
-                    array (
-                      'offset' => 56,
-                      'length' => 7,
-                      'type' => 'bold',
-                    ),
-                    array (
-                      'offset' => 74,
-                      'length' => 8,
-                      'type' => 'text_link',
-                      'url' => 'https://ethereum.org/',
-                    ),
-                    array (
-                      'offset' => 74,
-                      'length' => 8,
-                      'type' => 'bold',
-                    ),
-                    array (
-                      'offset' => 93,
-                      'length' => 12,
-                      'type' => 'text_link',
-                      'url' => 'https://binance.org/',
-                    ),
-                    array (
-                      'offset' => 93,
-                      'length' => 12,
-                      'type' => 'bold',
-                    ),
-                    array (
-                      'offset' => 116,
-                      'length' => 11,
-                      'type' => 'text_link',
-                      'url' => 'https://www.binance.com/en/busd',
-                    ),
-                    array (
-                      'offset' => 116,
-                      'length' => 11,
-                      'type' => 'bold',
-                    ),
-                    array (
-                      'offset' => 139,
-                      'length' => 8,
-                      'type' => 'text_link',
-                      'url' => 'https://www.centre.io/usdc',
-                    ),
-                    array (
-                      'offset' => 139,
-                      'length' => 8,
-                      'type' => 'bold',
-                    ),
-                );
+                $parse_mode = 'HTML';
                 $reply_markup = [
                     'inline_keyboard' => [
                         [['text'=>$lang['deposit'],'callback_data'=>'/deposit'],['text'=>$lang['withdraw'],'callback_data'=>'/withdraw']],
                         [['text'=>$lang['back'],'callback_data'=>'/start']]
                     ],
                 ];
-                $this->_editMessage($callback, $text, $reply_markup, $entities);
+                $this->_editMessage($callback, $text, $reply_markup, $parse_mode);
                 break;
             case '/deposit':    // Wallet > Deposit
             case '/withdraw':   // Wallet > Withdraw
@@ -1267,35 +1177,19 @@ class TelegramBotService
                 $this->_editMessage($callback, $text, $reply_markup);
                 break;
             case '/settings':
-                $text  = "👤 Icky Maiasaura\n\n".$lang['your_language'].": ";
-                if ($language_code == 'zh') {
-                    $text .= $lang['language_zh'];
-                } else {
-                    $text .= $lang['language_en'];
-                }
-                $entities = array (
-                    array (
-                        'offset' => 3,
-                        'length' => 14,
-                        'type' => 'text_link',
-                        'url' => 'http://t.me/'.$this->BotName,
-                    ),
-                    array (
-                        'offset' => 3,
-                        'length' => 14,
-                        'type' => 'bold',
-                    ),
-                );
+                $text  = "👤 [".$this->BotName."](tg://user?id=".$this->userID.")\n\n".$lang['your_language'].": ".$lang['language_'.$language_code];
                 $reply_markup = [
                     'inline_keyboard' => [
                         // [['text'=>'Referral Program','callback_data'=>'/settings_referral']],
                         // [['text'=>'Notifications','callback_data'=>'/settings_notifications']],
                         [['text'=>$lang['language'],'callback_data'=>'/settings_language']],
-                        [['text'=>$lang['contact_us'],'url'=>'https://www.100ex.com/zh_CN/cms/contact%20us']],
+                        [['text'=>$lang['faq'],'url'=>'https://www.100ex.com/zh_CN/cms/contact%20us']],
+                        [['text'=>$lang['features'],'url'=>'https://t.me/+dBvHxg1s7IgwMGY1']],
+                        [['text'=>$lang['contact_us'],'url'=>'https://t.me/BaiyiTestBot']],
                         [['text'=>$lang['back'],'callback_data'=>'/Start']]
                     ],
                 ];
-                $this->_editMessage($callback, $text, $reply_markup, $entities);
+                $this->_editMessage($callback, $text, $reply_markup);
                 break;
             case '/settings_language': // Settings > Language
                 $text  = 'Please choose a language.';
@@ -1357,8 +1251,7 @@ class TelegramBotService
                 $this->_editMessage($callback, $text, $reply_markup);
                 break;
             case '/exchange':
-                $text  = "🐬 Here you can exchange cryptocurrencies using limit orders that executed automatically.\n";
-                $text .= "\n";
+                $text  = "🐬 Here you can exchange cryptocurrencies using limit orders that executed automatically.\n\n";
                 $text .= "🪐 Create your order to start. 0.75% fee for takers and 0.5% fee for makers.";
                 $reply_markup = [
                     'inline_keyboard' => [
@@ -1388,6 +1281,12 @@ class TelegramBotService
         }
     }
 
+    /**
+     * get language package
+     *
+     * @param string $language_code
+     * @return array
+     */
     private function _getLang($language_code) {
         if ($language_code == 'zh') {
             return [
@@ -1404,7 +1303,9 @@ class TelegramBotService
                 'your_language'     => '你的语言',
                 'language_zh'       => "🇨🇳 中文",
                 'language_en'       => "🇺🇸 English",
-                'contact_us'        => '联系我们'
+                'faq'               => '网页跳转',
+                'features'          => 'TG群跳转',
+                'contact_us'        => 'TG聊天跳转'
             ];
         }
         return [
@@ -1421,6 +1322,8 @@ class TelegramBotService
             'your_language'     => 'Your Language',
             'language_zh'       => "🇨🇳 中文",
             'language_en'       => "🇺🇸 English",
+            'faq'               => 'Crypto Bot FAQ',
+            'features'          => 'Crypto Bot Features',
             'contact_us'        => 'Contact Us'
         ];
     }
@@ -1433,21 +1336,20 @@ class TelegramBotService
      * @param string $keyboard
      * @return void
      */
-    private function _editMessage($callback, $text, $reply_markup = '', $entities = []) {
+    private function _editMessage($callback, $text, $reply_markup = '', $parse_mode = '') {
         if ($callback['message_text'] != $text) {
             $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' editMessageText callback : ' . var_export($callback, true), true);
             $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' editMessageText text : ' . var_export($text, true), true);
             $data = [
                 'chat_id'       => $callback['chat_id'],
                 'message_id'    => $callback['message_id'],
-                'text'          => $text,
-                // 'parse_mode'    => 'HTML'
+                'text'          => $text
             ];
+            if ( ! empty($parse_mode)) {
+                $data['parse_mode'] = $parse_mode;
+            }
             if ( ! empty($reply_markup)) {
                 $data['reply_markup'] = json_encode($reply_markup);
-            }
-            if ( ! empty($entities)) {
-                $data['entities'] = json_encode($entities);
             }
             $this->editMessageText($data);
         } else if ( ! empty($reply_markup)) {
