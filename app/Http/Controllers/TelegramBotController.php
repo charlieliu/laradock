@@ -31,7 +31,8 @@ class TelegramBotController extends Controller
         $result = $this->service->bots();
         $btns = [
             'tg_detail' => 'username',
-            'tg_run'    => 'username'
+            'tg_run'    => 'username',
+            'tg_link'   => 'username',
         ];
         return view('content_list', [
             'active'        => 'tb_bots',

@@ -23,30 +23,35 @@
             <div class="row row_td">
                 @foreach ($row as $key => $value) <div class="col">
                     @if ($key!=='operations')
-                        {{$value}}
+                        {{ $value }}
                     @else
                         @foreach ($value as $opt => $todo)
                             @if ($opt=='edit')
                                 <button class="btn"><i class="fa fa-edit"></i></button>
                             @endif
                             @if ($opt=='tg_detail')
-                                <a href="{{$todo}}" title="Only Read Telegram Service Data">
+                                <a href="{{ $todo }}" title="Only Read Telegram Service Data">
                                     <button class="btn"><i class="fa fa-list"></i></button>
                                 </a>
                             @endif
                             @if ($opt=='tg_run')
-                                <a href="{{$todo}}" title="Get Bot Updates and Clean Telegram Service Data">
+                                <a href="{{ $todo }}" title="Get Bot Updates and Clean Telegram Service Data">
                                     <button class="btn"><i class="fa fa-ambulance"></i></button>
                                 </a>
                             @endif
                             @if ($opt=='tg_chat_messages' || $opt=='tg_user_messages')
-                                <a href="{{$todo}}" title="Messages">
+                                <a href="{{ $todo }}" title="Messages">
                                     <button class="btn"><i class="fa fa-comment"></i></button>
                                 </a>
                             @endif
                             @if ($opt=='tg_send')
-                                <a href="{{$todo}}" title="Get Bot Updates and Clean Telegram Service Data">
+                                <a href="{{ $todo }}" title="Get Bot Updates and Clean Telegram Service Data">
                                     <button class="btn"><i class="fa fa-telegram"></i></button>
+                                </a>
+                            @endif
+                            @if ($opt=='tg_link')
+                                <a href="{{ $todo }}">
+                                    <button class="btn"><i class="fa fa-comment"></i></button>
                                 </a>
                             @endif
                         @endforeach
