@@ -21,13 +21,13 @@ class InspiringController extends Controller
     public function list() {
         $columns = ['id'=>'ID','author'=>'Author','content'=>'Inspire','operations'=>'Operations'];
         $result = $this->service->list() ?: [];
-        $btns = ['edit'=>'edit'];
+        $buttons = ['edit'=>'edit'];
         return view('content_list', [
             'active'        => 'inspire',
             'title'         => 'Inspire List',
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'       => $columns,
-            'list'          => $this->parse_list($result, $columns, $btns)
+            'list'          => $this->parse_list($result, $columns, $buttons)
         ]);
     }
 

@@ -11,7 +11,7 @@ class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
 
-    public function parse_list($input, $columns, $btns = [])
+    public function parse_list($input, $columns, $buttons = [])
     {
         $output = [];
         foreach ($input as $index => $row)
@@ -20,7 +20,7 @@ class Controller extends BaseController
             foreach ($columns as $column => $text)
             {
                 if ($column=='operations') {
-                    foreach ($btns as $btn_key => $btn_col) {
+                    foreach ($buttons as $btn_key => $btn_col) {
                         if ($btn_key == 'tg_detail' && isset($row[$btn_col])) {
                             $output[$index]['operations'][$btn_key] = '/tg_bot/read/'.$row[$btn_col];
                         }

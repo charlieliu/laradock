@@ -31,7 +31,7 @@ class TelegramBotController extends Controller
             'operations'    => 'Operations'
         ];
         $result = $this->service->bots();
-        $btns = [
+        $buttons = [
             'tg_detail' => 'username',
             'tg_run'    => 'username',
             'tg_link'   => 'username',
@@ -41,7 +41,7 @@ class TelegramBotController extends Controller
             'title'         => 'Telegram Bot List',
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'       => $columns,
-            'list'          => $this->parse_list($result, $columns, $btns)
+            'list'          => $this->parse_list($result, $columns, $buttons)
         ]);
     }
 
@@ -114,13 +114,13 @@ class TelegramBotController extends Controller
         $this->breadcrumbs = ['Telegram Chats'=>'/tg_bot/chats'];
         $result = $this->service->chats();
         $columns = ['id'=>'ID','title'=>'Title','type'=>'Type','operations'=>'Operations'];
-        $btns = ['tg_chat_messages' => 'id'];
+        $buttons = ['tg_chat_messages' => 'id'];
         return view('content_list', [
             'active'    => 'tg_chats',
             'title'     => 'Telegram Chat List',
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'   => $columns,
-            'list'      => $this->parse_list($result, $columns, $btns)
+            'list'      => $this->parse_list($result, $columns, $buttons)
         ]);
     }
 
@@ -174,13 +174,13 @@ class TelegramBotController extends Controller
         $this->breadcrumbs = ['Telegram Users'=>'/tg_bot/users'];
         $result = $this->service->users();
         $columns = ['id'=>'ID','bot'=>'Is Bot','first_name'=>'First Name','last_name'=>'Last Name','username'=>'username','operations'=>'Operations'];
-        $btns = ['tg_user_messages' => 'id'];
+        $buttons = ['tg_user_messages' => 'id'];
         return view('content_list', [
             'active'        => 'tg_users',
             'title'         => 'Telegram User List',
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'       => $columns,
-            'list'          => $this->parse_list($result, $columns, $btns)
+            'list'          => $this->parse_list($result, $columns, $buttons)
         ]);
     }
 
