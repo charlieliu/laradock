@@ -11,8 +11,7 @@ class TelegramBotController extends Controller
     public $breadcrumbs = [];
     private $service;
 
-    public function __construct(TelegramBotService $telegramBotService)
-    {
+    public function __construct(TelegramBotService $telegramBotService) {
         $this->service = $telegramBotService;
     }
 
@@ -80,11 +79,11 @@ class TelegramBotController extends Controller
             'text'      => 'Text'
         ];
         return view('content_list', [
-            'active'    => 'tg_bot',
-            'title'     => 'Run Bot - '.$name,
+            'active'        => 'tg_bot',
+            'title'         => 'Run Bot - '.$name,
             'breadcrumbs'   => $this->breadcrumbs,
-            'columns'   => $columns,
-            'list'      => $this->parse_list($list, $columns)
+            'columns'       => $columns,
+            'list'          => $this->parse_list($list, $columns)
         ]);
     }
 
@@ -98,11 +97,11 @@ class TelegramBotController extends Controller
         $result = $this->service->readGetUpdates($name);
         $columns = ['update_id'=>'ID','from'=>'From','type'=>'Type','date'=>'Date','text'=>'Text'];
         return view('content_list', [
-            'active'    => 'tg_bots',
-            'title'     => 'Bot - '.$name,
+            'active'        => 'tg_bots',
+            'title'         => 'Bot - '.$name,
             'breadcrumbs'   => $this->breadcrumbs,
-            'columns'   => $columns,
-            'list'      => $this->parse_list($result, $columns)
+            'columns'       => $columns,
+            'list'          => $this->parse_list($result, $columns)
         ]);
     }
 
@@ -116,11 +115,11 @@ class TelegramBotController extends Controller
         $columns = ['id'=>'ID','title'=>'Title','type'=>'Type','operations'=>'Operations'];
         $buttons = ['tg_chat_messages' => 'id'];
         return view('content_list', [
-            'active'    => 'tg_chats',
-            'title'     => 'Telegram Chat List',
+            'active'        => 'tg_chats',
+            'title'         => 'Telegram Chat List',
             'breadcrumbs'   => $this->breadcrumbs,
-            'columns'   => $columns,
-            'list'      => $this->parse_list($result, $columns, $buttons)
+            'columns'       => $columns,
+            'list'          => $this->parse_list($result, $columns, $buttons)
         ]);
     }
 

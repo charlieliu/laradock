@@ -10,9 +10,16 @@
                 <button class="btn" onclick="window.location.reload()">
                     <span class="fa fa-undo"></span>
                 </button>
+                @if (count($breadcrumbs) > 1)
                 <button class="btn" onclick="history.back()">
                     <span class="fa fa-reply"></span>
                 </button>
+                @endif
+                @if (in_array($active, ['tg_bots','coin','network','coin_network']))
+                <button class="btn">
+                    <span class="fa fa-plus-circle"></span>
+                </button>
+                @endif
             </div>
         </div>
         @if(!empty($columns) && is_array($columns))
@@ -53,7 +60,7 @@
                                 </a>
                             @endif
                             @if ($opt=='tg_link')
-                                <a href="{{ $todo }}">
+                                <a href="{{ $todo }}" target="_blank">
                                     <button class="btn"><i class="fa fa-comment"></i></button>
                                 </a>
                             @endif

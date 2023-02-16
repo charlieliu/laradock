@@ -17,3 +17,16 @@
 .container .row_td .btn:hover, .btn:hover {
     background-color: RoyalBlue;
 }
+
+.breadcrumb .btn {
+    cursor: pointer; /* Mouse pointer on hover */
+	color: white;
+	background: #333;
+	background: linear-gradient(#333, #111);
+}
+
+.breadcrumb .btn:hover {
+    cursor: pointer; /* Mouse pointer on hover */
+	color: #333;
+	background: white;
+}

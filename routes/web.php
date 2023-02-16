@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InspiringController;
 use App\Http\Controllers\TelegramBotController;
+use App\Http\Controllers\CoinNetworkController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,3 +52,7 @@ Route::get('/tg_bot/users',                 [TelegramBotController::class, 'user
 Route::get('/tg_bot/user_messages/{id}',    [TelegramBotController::class, 'userMessages']);
 Route::get('/tg_bot/read/{name}',           [TelegramBotController::class, 'read']);
 Route::get('/tg_bot/run/{name}',            [TelegramBotController::class, 'run']);
+
+Route::get('/coin',             [CoinNetworkController::class, 'coin']);
+Route::get('/network',          [CoinNetworkController::class, 'network']);
+Route::get('/coin_network',     [CoinNetworkController::class, 'list']);

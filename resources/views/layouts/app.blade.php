@@ -11,28 +11,36 @@
         <link rel="stylesheet" href="{{asset('css/app.min.css')}}">
     </head>
     <body>
-        <div class="col-4 col-md-3 col-lg-2 .col-xl-1 d-md-block bg-light sidebar collapse">
-            <a role="button" @if ($active=='hello_world') class="active" @endif href="/hello-world">
-                <div class="sidebar_1"><i class="fa fa-home"></i> Hello World</div>
-            </a>
-            <a role="button" @if ($active=='about_us') class="active" @endif href="/about_us">
-                <div class="sidebar_1"><i class="fa fa-bars"></i> About Us</div>
-            </a>
-            <a role="button" @if ($active=='inspire') class="active" @endif href="/inspire">
-                <div class="sidebar_1"><i class="fa fa-bars"></i> Inspire</div>
-            </a>
-            <a role="button" @if ($active=='tg_bots') class="active" @endif href="/tg_bot">
-                <div class="sidebar_1"><i class="fa fa-bars"></i> Telegram Bots</div>
-            </a>
-            <a role="button" @if ($active=='tg_chats') class="active" @endif href="/tg_bot/chats">
-                <div class="sidebar_1"><i class="fa fa-bars"></i> Telegram Chats</div>
-            </a>
-            <a role="button" @if ($active=='tg_users') class="active" @endif href="/tg_bot/users">
-                <div class="sidebar_1"><i class="fa fa-bars"></i> Telegram Users</div>
-            </a>
-        </div>
-        <div class="col-8 col-md-9 col-lg-10 .col-xl-11 bg-light container">
-            @yield('content')
+        <div class="row" style="width:100%;height:100%;">
+            <div class="col-4 col-md-3 col-lg-2 .col-xl-1 d-md-block bg-light sidebar collapse">
+                <a role="button" @if ($active=='hello_world') class="active" @endif href="/hello-world">
+                    <div class="sidebar_1"><i class="fa fa-home"></i> Hello World</div>
+                </a>
+                <a role="button" @if ($active=='about_us') class="active" @endif href="/about_us">
+                    <div class="sidebar_1"><i class="fa fa-bars"></i> About Us</div>
+                </a>
+                <a role="button" @if ($active=='coin') class="active" @endif href="/coin">
+                    <div class="sidebar_1"><i class="fa fa-bars"></i> Coin</div>
+                </a>
+                <a role="button" @if ($active=='network') class="active" @endif href="/network">
+                    <div class="sidebar_1"><i class="fa fa-bars"></i> Network</div>
+                </a>
+                <a role="button" @if ($active=='coin_network') class="active" @endif href="/coin_network">
+                    <div class="sidebar_1"><i class="fa fa-bars"></i> Coin Network</div>
+                </a>
+                <a role="button" @if ($active=='tg_bots') class="active" @endif href="/tg_bot">
+                    <div class="sidebar_1"><i class="fa fa-bars"></i> Telegram Bots</div>
+                </a>
+                <a role="button" @if ($active=='tg_chats') class="active" @endif href="/tg_bot/chats">
+                    <div class="sidebar_1"><i class="fa fa-bars"></i> Telegram Chats</div>
+                </a>
+                <a role="button" @if ($active=='tg_users') class="active" @endif href="/tg_bot/users">
+                    <div class="sidebar_1"><i class="fa fa-bars"></i> Telegram Users</div>
+                </a>
+            </div>
+            <div class="col-8 col-md-9 col-lg-10 .col-xl-11 bg-light container">
+                @yield('content')
+            </div>
         </div>
     </body>
 </html>
