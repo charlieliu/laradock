@@ -22,19 +22,19 @@ class Controller extends BaseController
                 if ($column=='operations') {
                     foreach ($btns as $btn_key => $btn_col) {
                         if ($btn_key == 'tg_detail' && isset($row[$btn_col])) {
-                            $output[$index]['operations'][$btn_key] = '/tb/read/'.$row[$btn_col];
+                            $output[$index]['operations'][$btn_key] = '/tg_bot/read/'.$row[$btn_col];
                         }
                         if ($btn_key == 'tg_run' && isset($row[$btn_col])) {
-                            $output[$index]['operations'][$btn_key] = '/tb/run/'.$row[$btn_col];
+                            $output[$index]['operations'][$btn_key] = '/tg_bot/run/'.$row[$btn_col];
                         }
                         if ($btn_key == 'tg_link' && isset($row[$btn_col])) {
                             $output[$index]['operations'][$btn_key] = 'https://t.me/'.$row[$btn_col];
                         }
                         if ($btn_key == 'tg_chat_messages' && isset($row[$btn_col])) {
-                            $output[$index]['operations'][$btn_key] = '/tb/chat_messages/'.$row[$btn_col];
+                            $output[$index]['operations'][$btn_key] = '/tg_bot/chat_messages/'.$row[$btn_col];
                         }
                         if ($btn_key == 'tg_user_messages' && isset($row[$btn_col])) {
-                            $output[$index]['operations'][$btn_key] = '/tb/user_messages/'.$row[$btn_col];
+                            $output[$index]['operations'][$btn_key] = '/tg_bot/user_messages/'.$row[$btn_col];
                         }
                         if ($btn_key == 'edit') {
                             $output[$index]['operations'][$btn_key] = 'edit';

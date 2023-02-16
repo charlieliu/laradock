@@ -11,7 +11,7 @@
         <link rel="stylesheet" href="{{asset('css/app.min.css')}}">
     </head>
     <body>
-        <div class="col-4 col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+        <div class="col-4 col-md-3 col-lg-2 .col-xl-1 d-md-block bg-light sidebar collapse">
             <a role="button" @if ($active=='hello_world') class="active" @endif href="/hello-world">
                 <div class="sidebar_1"><i class="fa fa-home"></i> Hello World</div>
             </a>
@@ -21,17 +21,17 @@
             <a role="button" @if ($active=='inspire') class="active" @endif href="/inspire">
                 <div class="sidebar_1"><i class="fa fa-bars"></i> Inspire</div>
             </a>
-            <a role="button" @if ($active=='tb_bots') class="active" @endif href="/tb">
+            <a role="button" @if ($active=='tg_bots') class="active" @endif href="/tg_bot">
                 <div class="sidebar_1"><i class="fa fa-bars"></i> Telegram Bots</div>
             </a>
-            <a role="button" @if ($active=='tb_chats') class="active" @endif href="/tb/chats">
+            <a role="button" @if ($active=='tg_chats') class="active" @endif href="/tg_bot/chats">
                 <div class="sidebar_1"><i class="fa fa-bars"></i> Telegram Chats</div>
             </a>
-            <a role="button" @if ($active=='tb_users') class="active" @endif href="/tb/users">
+            <a role="button" @if ($active=='tg_users') class="active" @endif href="/tg_bot/users">
                 <div class="sidebar_1"><i class="fa fa-bars"></i> Telegram Users</div>
             </a>
         </div>
-        <div class="col-8 col-md-9 col-lg-10 bg-light container">
+        <div class="col-8 col-md-9 col-lg-10 .col-xl-11 bg-light container">
             @yield('content')
         </div>
     </body>

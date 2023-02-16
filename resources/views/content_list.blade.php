@@ -3,13 +3,16 @@
 @section('content')
     <div class="content_header">
         <div class="row">
-            <div class="col">
+            <div class="col breadcrumb flat">
                 @foreach ($breadcrumbs as $name => $href)
-                <a href="{{ $href }}" style="margin-right: 4px;float: left;">{{ $name }}</a>
+                <a href="{{ $href }}">{{ $name }}</a>
                 @endforeach
-            </div>
-            <div class="col">
-                <button class="btn"><span class="fa fa-undo" onclick="history.back()"></span></button>
+                <button class="btn" onclick="window.location.reload()">
+                    <span class="fa fa-undo"></span>
+                </button>
+                <button class="btn" onclick="history.back()">
+                    <span class="fa fa-reply"></span>
+                </button>
             </div>
         </div>
         @if(!empty($columns) && is_array($columns))
@@ -40,8 +43,8 @@
                                 </a>
                             @endif
                             @if ($opt=='tg_chat_messages' || $opt=='tg_user_messages')
-                                <a href="{{ $todo }}" title="Messages">
-                                    <button class="btn"><i class="fa fa-comment"></i></button>
+                                <a href="{{ $todo }}" title="Message List">
+                                    <button class="btn"><i class="fa fa-list"></i></button>
                                 </a>
                             @endif
                             @if ($opt=='tg_send')

@@ -8,7 +8,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
-
 use App\Services\TelegramBotService;
 
 class TelegramBotGetUpdate implements ShouldQueue
@@ -37,24 +36,22 @@ class TelegramBotGetUpdate implements ShouldQueue
      */
     public function handle() {
         if (empty($this->bot) || empty($this->bot['username'])) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR bot : ' . var_export($this->bot, true));
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR bot : ' . var_export($this->bot, true), true);
             return;
         }
         $worker = Cache::get('worker:'.$this->bot['username']);
         if ( ! empty($worker)) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' worker : ' . var_export($worker, true));
+            $worker = is_array($worker) ? $worker : json_decode($worker, true);
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' EXIST worker : ' . var_export($worker, true), true);
             return;
         }
-        Cache::put('worker:'.$this->bot['username'], json_encode($this->bot), 600);
-        $this->service->logHead = ' ['.$this->bot['username'].'] - '.$this->bot['startAt'];
-        $result = $this->service->readGetUpdates($this->bot['username'], 10, 30);
+        $result = $this->service->readGetUpdates($this->bot['username'], 100, 60);
         $done = count($result);
         $this->bot['done'] += $done;
         $this->bot['endAt'] = date('Y-m-d H:i:s');
         if ( ! empty($done)) {
-            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' bot : ' . var_export($this->bot, true));
+            $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' bot : ' . var_export($this->bot, true), true);
         }
-        Cache::forget('worker:'.$this->bot['username']);
         dispatch(new TelegramBotGetUpdate($this->bot));
     }
 }

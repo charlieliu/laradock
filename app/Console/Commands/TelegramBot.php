@@ -42,10 +42,6 @@ class TelegramBot extends Command
      * @return int
      */
     public function handle() {
-        $bots = $this->service->bots();
-        foreach ($bots as $bot) {
-            Cache::forget('worker:'.$bot['username']);
-        }
         $run = true;
         while ($run === true) {
             $bots = $this->service->bots();
@@ -54,12 +50,11 @@ class TelegramBot extends Command
                 if (empty($worker)) {
                     $bot['startAt'] = date('Y-m-d H:i:s');
                     $bot['done'] = 0;
-                    Cache::forget('worker:'.$bot['username']);
                     dispatch(new TelegramBotGetUpdate($bot));
                     $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ADD bot : ' . var_export($bot, true), true);
                 }
             }
-            sleep(600);
+            sleep(300);
         }
     }
 }

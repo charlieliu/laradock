@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Chat;
+use App\Models\User;
 use App\Services\TelegramBotService;
 
 class TelegramBotController extends Controller
@@ -19,7 +21,7 @@ class TelegramBotController extends Controller
      * @return string
      */
     public function bots() {
-        $this->breadcrumbs = ['Telegram Bots'=>'/tb'];
+        $this->breadcrumbs = ['Telegram Bots'=>'/tg_bot'];
         $columns = [
             'id'            => 'ID',
             'username'      => 'Bot Name',
@@ -35,7 +37,7 @@ class TelegramBotController extends Controller
             'tg_link'   => 'username',
         ];
         return view('content_list', [
-            'active'        => 'tb_bots',
+            'active'        => 'tg_bots',
             'title'         => 'Telegram Bot List',
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'       => $columns,
@@ -49,7 +51,7 @@ class TelegramBotController extends Controller
      * @return string
      */
     public function run($name) {
-        $this->breadcrumbs = ['Telegram Bots'=>'/tb',$name.' Run'=>'/tb/run/'.$name];
+        $this->breadcrumbs = ['Telegram Bots'=>'/tg_bot',$name.' Run'=>'/tg_bot/run/'.$name];
         $BotName = '';
         $ApiKey = '';
 
@@ -78,7 +80,7 @@ class TelegramBotController extends Controller
             'text'      => 'Text'
         ];
         return view('content_list', [
-            'active'    => 'tb',
+            'active'    => 'tg_bot',
             'title'     => 'Run Bot - '.$name,
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'   => $columns,
@@ -92,11 +94,11 @@ class TelegramBotController extends Controller
      * @return string
      */
     public function read($name) {
-        $this->breadcrumbs = ['Telegram Bots'=>'/tb',$name.' Reading'=>'/tb/read/'.$name];
+        $this->breadcrumbs = ['Telegram Bots'=>'/tg_bot',$name.' Reading'=>'/tg_bot/read/'.$name];
         $result = $this->service->readGetUpdates($name);
         $columns = ['update_id'=>'ID','from'=>'From','type'=>'Type','date'=>'Date','text'=>'Text'];
         return view('content_list', [
-            'active'    => 'tb_bots',
+            'active'    => 'tg_bots',
             'title'     => 'Bot - '.$name,
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'   => $columns,
@@ -109,12 +111,12 @@ class TelegramBotController extends Controller
      * @return string
      */
     public function chats() {
-        $this->breadcrumbs = ['Telegram Chats'=>'/tb/chats'];
+        $this->breadcrumbs = ['Telegram Chats'=>'/tg_bot/chats'];
         $result = $this->service->chats();
         $columns = ['id'=>'ID','title'=>'Title','type'=>'Type','operations'=>'Operations'];
         $btns = ['tg_chat_messages' => 'id'];
         return view('content_list', [
-            'active'    => 'tb_chats',
+            'active'    => 'tg_chats',
             'title'     => 'Telegram Chat List',
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'   => $columns,
@@ -127,8 +129,27 @@ class TelegramBotController extends Controller
      * @return string
      */
     public function chatMessages($id) {
-        $this->breadcrumbs = ['Telegram Chats'=>'/tb/chats','Messages'=>'/tb/chat_messages/'.$id];
-        $result = $this->service->chatMessages($id);
+        $model = new Chat();
+        $chat = $model::getOne($id);
+        $this->service->logInfo(__METHOD__, var_export($chat, true));
+        $result = [];
+        $tab = 'Messages';
+        if ( ! empty($chat)) {
+            $result = $this->service->chatMessages($id);
+            $tab = '';
+            if ($chat->type == 'private') {
+                if ( ! empty($chat->first_name)) {
+                    $tab .= $chat->first_name;
+                }
+                if ( ! empty($chat->last_name)) {
+                    $tab .= $chat->last_name;
+                }
+            } else {
+                $tab .= $chat->title;
+            }
+            $tab .= ' Messages';
+        }
+        $this->breadcrumbs = ['Telegram Chats'=>'/tg_bot/chats',$tab=>'/tg_bot/chat_messages/'.$id];
         $columns = [
             'id'        => 'ID',
             'date'      => 'Date',
@@ -137,7 +158,7 @@ class TelegramBotController extends Controller
             'text'      => 'Text',
         ];
         return view('content_list', [
-            'active'        => 'tb_chats',
+            'active'        => 'tg_chats',
             'title'         => 'Telegram Chat Messages',
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'       => $columns,
@@ -150,12 +171,12 @@ class TelegramBotController extends Controller
      * @return string
      */
     public function users() {
-        $this->breadcrumbs = ['Telegram Users'=>'/tb/users'];
+        $this->breadcrumbs = ['Telegram Users'=>'/tg_bot/users'];
         $result = $this->service->users();
         $columns = ['id'=>'ID','bot'=>'Is Bot','first_name'=>'First Name','last_name'=>'Last Name','username'=>'username','operations'=>'Operations'];
         $btns = ['tg_user_messages' => 'id'];
         return view('content_list', [
-            'active'        => 'tb_users',
+            'active'        => 'tg_users',
             'title'         => 'Telegram User List',
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'       => $columns,
@@ -168,11 +189,32 @@ class TelegramBotController extends Controller
      * @return string
      */
     public function userMessages($id) {
-        $this->breadcrumbs = ['Telegram Users'=>'/tb/users','Messages'=>'/tb/user_messages/'.$id];
-        $result = $this->service->userMessages($id);
-        $columns = ['id'=>'ID','chat_title'=>'Group','date'=>'Date','text'=>'Text'];
+        $model = new User();
+        $user = $model::getOne($id);
+        $this->service->logInfo(__METHOD__, var_export($user, true));
+        $result = [];
+        $tab = 'Messages';
+        if ( ! empty($user)) {
+            $result = $this->service->userMessages($id);
+            $tab = '';
+            if ( ! empty($user->first_name)) {
+                $tab .= $user->first_name;
+            }
+            if ( ! empty($user->last_name)) {
+                $tab .= $user->last_name;
+            }
+            $tab .= ' Messages';
+        }
+        $this->breadcrumbs = ['Telegram Users'=>'/tg_bot/users',$tab=>'/tg_bot/user_messages/'.$id];
+        $columns = [
+            'id'        => 'ID',
+            'chat_title'=> 'Group',
+            'chat_type' => 'Group Type',
+            'date'      => 'Date',
+            'text'      => 'Text'
+        ];
         return view('content_list', [
-            'active'        => 'tb_users',
+            'active'        => 'tg_users',
             'title'         => 'Telegram User Messages',
             'breadcrumbs'   => $this->breadcrumbs,
             'columns'       => $columns,

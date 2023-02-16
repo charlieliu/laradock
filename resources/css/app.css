@@ -1,5 +1,8 @@
 html {
     line-height:1.15;
+    min-height: 100%;
+	/* background: #333333;
+	background: linear-gradient(#333333, #111111); */
 }
 body {
     margin:0;
@@ -7,12 +10,19 @@ body {
     height: 100vh;
     max-height: calc(100vh - 16px);
     width: 100vw;
+	text-align: center;
+	/* padding-top: 100px; */
+	/* background: #333333; */
+	/* background: linear-gradient(#333333, #111111); */
+	font-family: 'Merriweather Sans', arial, verdana;
 }
 .sidebar {
     padding:8px;
     height:100%;
     float: left;
     border-radius: 5px;
+    /* background: #333333; */
+	/* background: linear-gradient(#333333, #111111); */
 }
 .sidebar .active, .active .sidebar_1 {
     color: white;
@@ -35,11 +45,12 @@ body {
     color: white;
 }
 .container {
-    height: 100%;
+    height: calc(100% - 10px);
     padding: 16px;
     box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.2), 0 2px 10px 0 rgba(0, 0, 0, 0.2);
     border-radius: 16px;
     float: left;
+    margin-top: 5px;
 }
 .container .row {
     margin-bottom: 4px;
@@ -59,7 +70,8 @@ body {
     background-color: rgba(245, 222, 179, 0.2);
 }
 .content_content {
-    height: calc(100% - 100px);
+    margin-top: 10px;
+    height: calc(100% - 110px);
     overflow-y: auto;
 }
 .content_header {

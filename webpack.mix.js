@@ -3,6 +3,7 @@ const mix = require('laravel-mix');
 mix.styles([
     'resources/css/app.css',
     'resources/css/btn.css',
+    'resources/css/breadcrumb.css',
 ], 'public/css/app.css');
 
 mix.minify('public/css/app.css');

@@ -44,10 +44,10 @@ Route::get('/about_us', function () {
 Route::get('/inspire',      [InspiringController::class, 'list']);
 Route::get('/inspire/data', [InspiringController::class, 'inspire']);
 
-Route::get('/tb',                       [TelegramBotController::class, 'bots']);
-Route::get('/tb/chats',                 [TelegramBotController::class, 'chats']);
-Route::get('/tb/chat_messages/{id}',    [TelegramBotController::class, 'chatMessages']);
-Route::get('/tb/users',                 [TelegramBotController::class, 'users']);
-Route::get('/tb/user_messages/{id}',    [TelegramBotController::class, 'userMessages']);
-Route::get('/tb/read/{name}',           [TelegramBotController::class, 'read']);
-Route::get('/tb/run/{name}',            [TelegramBotController::class, 'run']);
+Route::get('/tg_bot',                       [TelegramBotController::class, 'bots']);
+Route::get('/tg_bot/chats',                 [TelegramBotController::class, 'chats']);
+Route::get('/tg_bot/chat_messages/{id}',    [TelegramBotController::class, 'chatMessages']);
+Route::get('/tg_bot/users',                 [TelegramBotController::class, 'users']);
+Route::get('/tg_bot/user_messages/{id}',    [TelegramBotController::class, 'userMessages']);
+Route::get('/tg_bot/read/{name}',           [TelegramBotController::class, 'read']);
+Route::get('/tg_bot/run/{name}',            [TelegramBotController::class, 'run']);

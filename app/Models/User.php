@@ -17,14 +17,15 @@ class User extends Model
         $response = (array) DB::select('SELECT * FROM `user`');
         foreach ($response as $row) {
             $tmp = [
-                'id'            => '',
-                'is_bot'        => false,
+                'id'            => 0, // DB column BIGINT
+                'is_bot'        => 0, // DB column TINYINT(1)
                 'first_name'    => '',
                 'last_name'     => '',
                 'username'      => '',
                 'language_code' => ''
             ];
             $row = (array) $row;
+            $row['is_bot'] = (int) $row['is_bot'];
             foreach ($row as $key => $value) {
                 if ( ! is_null($value) || is_bool($value)) {
                     $tmp[$key] = $value;
