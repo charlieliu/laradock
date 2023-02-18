@@ -6,7 +6,6 @@ use App\Models\ConfigCoinNetwork;
 
 class CoinNetworkController extends Controller
 {
-    public $breadcrumbs = [];
     private $model;
 
     public function __construct() {
@@ -17,7 +16,6 @@ class CoinNetworkController extends Controller
      * @return string
      */
     public function coin() {
-
         $result = $this->model::getCoinList();
         $buttons = ['edit'=>'edit'];
         $columns = [
@@ -37,8 +35,30 @@ class CoinNetworkController extends Controller
         ]);
     }
 
-    public function network() {
+    /**
+     * @return string
+     */
+    public function coinEdit($id=0) {
+        $result = $this->model::getCoinList();
+        $buttons = ['edit'=>'edit'];
+        $columns = [
+            'id'        => 'ID',
+            'symbol'    => 'Symbol',
+            'zh_name'   => 'Chinese Name',
+            'en_name'   => 'English Name',
+            'link'      => 'Link',
+            'operations'=>' Operations'
+        ];
+        return view('content_edit', [
+            'active'        => 'coin_edit',
+            'title'         => 'Coin List',
+            'breadcrumbs'   => ['Coin'=>'/coin','Coin'=>'/coin_edit'],
+            'columns'       => $columns,
+            'list'          => $this->parse_list($result, $columns, $buttons)
+        ]);
+    }
 
+    public function network() {
         $result = $this->model::getNetworkList();
         $buttons = ['edit'=>'edit'];
         $columns = [
@@ -59,7 +79,6 @@ class CoinNetworkController extends Controller
     }
 
     public function list() {
-
         $result = $this->model::getListAll();
         $buttons = ['edit'=>'edit'];
         $columns = [

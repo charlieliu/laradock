@@ -26,9 +26,9 @@ class TelegramUpdate extends Model
                 }
             }
             $table = Schema::hasTable('telegram_update_'.$user_id) ? 'telegram_update_'.$user_id : 'telegram_update';
-            self::logInfo(__METHOD__, 'LINE '.__LINE__.' table : ' . var_export($table, true));
-            self::logInfo(__METHOD__, 'LINE '.__LINE__.' data : ' . var_export($data, true));
-            return DB::table($table)->insert($data);
+            $result = DB::table($table)->insert($data);
+            self::logInfo(__METHOD__, 'LINE '.__LINE__.' table : ' . var_export($table, true).' data : ' . var_export($data, true).' result : ' . var_export($result, true));
+            return $result;
         } catch (\Exception $e) {
             self::logInfo(__METHOD__, 'LINE '.__LINE__.' ERROR '. var_export($e->getMessage(), true));
             return false;

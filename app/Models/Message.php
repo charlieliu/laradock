@@ -195,10 +195,14 @@ class Message extends Model
     }
 
     public static function insertData($data) {
-        return DB::table('message')->insert($data);
+        $result = DB::table('message')->insert($data);
+        self::logInfo(__METHOD__, 'LINE '.__LINE__.' data : ' . var_export($data, true).' result : ' . var_export($result, true));
+        return $result;
     }
 
     public static function updateData($id,$data) {
-        return DB::table('message')->where('id', $id)->update($data);
+        $result = DB::table('message')->where('id', $id)->update($data);
+        self::logInfo(__METHOD__, 'LINE '.__LINE__.' id : ' . var_export($id, true).' data : ' . var_export($data, true).' result : ' . var_export($result, true));
+        return $result;
     }
 }

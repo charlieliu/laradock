@@ -3,9 +3,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 class Chat extends Model
 {
     use HasFactory;
+
+    public static function logInfo($method = '', $info = '') {
+        $log = date('Y-m-d H:i:s') . ' ' .$method. ' '.$info;
+        Log::debug($log);
+    }
 
     public static function getOne($id = 0) {
         return DB::table('chat')->where('id', $id)->first();
@@ -43,10 +49,14 @@ class Chat extends Model
     }
 
     public static function insertData($data) {
-        return DB::table('chat')->insert($data);
+        $result = DB::table('chat')->insert($data);
+        self::logInfo(__METHOD__, 'LINE '.__LINE__.' data : ' . var_export($data, true).' result : ' . var_export($result, true));
+        return $result;
     }
 
     public static function updateData($id,$data) {
-        return DB::table('chat')->where('id', $id)->update($data);
+        $result = DB::table('chat')->where('id', $id)->update($data);
+        self::logInfo(__METHOD__, 'LINE '.__LINE__.' id : ' . var_export($id, true).' data : ' . var_export($data, true).' result : ' . var_export($result, true));
+        return $result;
     }
 }

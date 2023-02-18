@@ -46,12 +46,14 @@ Route::get('/inspire',      [InspiringController::class, 'list']);
 Route::get('/inspire/data', [InspiringController::class, 'inspire']);
 
 Route::get('/tg_bot',                       [TelegramBotController::class, 'bots']);
+Route::get('/tg_bot/bot/{id}',              [TelegramBotController::class, 'bot']);
 Route::get('/tg_bot/chats',                 [TelegramBotController::class, 'chats']);
 Route::get('/tg_bot/chat_messages/{id}',    [TelegramBotController::class, 'chatMessages']);
 Route::get('/tg_bot/users',                 [TelegramBotController::class, 'users']);
 Route::get('/tg_bot/user_messages/{id}',    [TelegramBotController::class, 'userMessages']);
-Route::get('/tg_bot/read/{name}',           [TelegramBotController::class, 'read']);
-Route::get('/tg_bot/run/{name}',            [TelegramBotController::class, 'run']);
+Route::get('/tg_bot/sync/{name}',           [TelegramBotController::class, 'sync']);
+
+Route::post('/tg_bot/bot/{id}',             [TelegramBotController::class, 'botEdit']);
 
 Route::get('/coin',             [CoinNetworkController::class, 'coin']);
 Route::get('/network',          [CoinNetworkController::class, 'network']);

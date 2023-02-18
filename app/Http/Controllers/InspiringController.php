@@ -7,7 +7,6 @@ use App\Services\InspiringService;
 
 class InspiringController extends Controller
 {
-    public $breadcrumbs = ['Inspiring'=>'/inspire'];
     private $service;
 
     public function __construct(InspiringService $inspiringService) {
@@ -25,7 +24,7 @@ class InspiringController extends Controller
         return view('content_list', [
             'active'        => 'inspire',
             'title'         => 'Inspire List',
-            'breadcrumbs'   => $this->breadcrumbs,
+            'breadcrumbs'   => ['Inspiring'=>'/inspire'],
             'columns'       => $columns,
             'list'          => $this->parse_list($result, $columns, $buttons)
         ]);
@@ -37,9 +36,10 @@ class InspiringController extends Controller
      */
     public function inspire() {
         return view('content_p', [
-            'active'    => 'inspire',
-            'title'     => 'Inspire',
-            'content'   => $this->service->inspire()
+            'active'        => 'inspire',
+            'title'         => 'Inspire',
+            'breadcrumbs'   => ['Inspiring'=>'/inspire'],
+            'content'       => $this->service->inspire()
         ]);
     }
 }

@@ -13,6 +13,10 @@ use App\Models\UserChat;
 use App\Models\CallbackQuery;
 use App\Models\TelegramUpdate;
 
+use App\Jobs\TelegramBotCallbackQueryEvent;
+use App\Jobs\TelegramBotMessageEvent;
+use App\Jobs\TelegramBotNewChatMembersEvent;
+
 /**
  * Class TelegramBotService
  */
@@ -82,6 +86,9 @@ class TelegramBotService
     public function bots() {
         $output = $this->getCache('bots');
         if ( ! empty($output)) {
+            foreach ($output as $key => $row) {
+                $output[$key]['last_update_id'] = (int) Cache::get('last_update_id:'.$row['username']);
+            }
             return $output;
         }
         $telegramBots = new TelegramBots();
@@ -267,8 +274,8 @@ class TelegramBotService
     private function _cURL($action, $data=[]) {
         $time_start = microtime(true);
         $url = 'https://api.telegram.org/bot'.$this->ApiKey.'/'.$action;
+        $logBody = ' url '.var_export($url, true).' data '.var_export($data, true);
         $query = http_build_query($data);
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' url '.var_export($url, true).' data '.var_export($data, true));
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POST, true);
@@ -280,14 +287,13 @@ class TelegramBotService
         $info = curl_getinfo($ch);
         curl_close($ch);
         if (empty($output)) {
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' error '. var_export($error, true));
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' info '. var_export($info, true));
+            $logBody .= ' error '. var_export($error, true).' info '. var_export($info, true);
             $output = ['ok' => false, 'curl_error_code' => curl_errno($ch), 'curl_error' => curl_error($ch)];
         } else {
             $output = json_decode($output, true);
         }
         $time_end = microtime(true);
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' END '.var_export($output, true).' USED '.($time_end - $time_start).' s');
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.$logBody.' END '.var_export($output, true).' USED '.($time_end - $time_start).' s');
         return $output;
     }
 
@@ -367,6 +373,17 @@ class TelegramBotService
         ]);
     }
 
+    /**
+    * See <a href="https://core.telegram.org/bots/api#getme">getMe</a>
+    * \return the JSON Telegram's reply.
+    */
+    public function getMe($token='') {
+        if ( ! empty($token)) {
+            $this->ApiKey = $token;
+        }
+        return $this->_cURL('getMe', [], false);
+    }
+
 
     // ===================== cURL telegram api END ===================== //
 
@@ -387,16 +404,19 @@ class TelegramBotService
             $output[] = $tmp;
         }
         foreach ($this->messages as $message) {
-            $this->messageEvent($message);
+            $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' message : '.var_export($message, true));
+            dispatch(new TelegramBotMessageEvent($message));
         }
         foreach ($this->new_chat_members as $chat_members) {
             foreach ($chat_members as $member) {
-                $this->newChatMembersEvent($member);
+                $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' member : '.var_export($member, true));
+                dispatch(new TelegramBotNewChatMembersEvent($member));
             }
         }
         foreach ($this->callback_queries as $chat_callback) {
             foreach ($chat_callback as $callback) {
-                $this->callbackEvent($callback);
+                $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' callback : '.var_export($callback, true));
+                dispatch(new TelegramBotCallbackQueryEvent($callback));
             }
         }
         $user_chat = new UserChat();
@@ -994,48 +1014,15 @@ class TelegramBotService
         $this->bot['startAt'] = date('Y-m-d H:i:s');
         $this->BotName = $BotName;
         $this->logHead = ' ['.$BotName.'] - '.$this->bot['startAt'];
-        $this->last_update_id = (int) Cache::get('last_update_id:'.$BotName);
+        if ( ! empty($this->bot['last_update_id'])) {
+            $this->last_update_id = (int) $this->bot['last_update_id'];
+        } else {
+            $this->last_update_id = (int) Cache::get('last_update_id:'.$BotName);
+        }
         $this->ApiKey = $this->bot['api_key'];
         $explode = explode(':', $this->ApiKey);
         $this->userID = (int) $explode[0];
         return $this->ApiKey;
-    }
-
-    /**
-     * getUpdates and write to Mysql
-     * @param string $name Bot username
-     * @param int $hold poll timeout
-     * @return string|bool
-     */
-    public function runGetUpdates($BotName, $hold = 1) {
-        $time_start = microtime(true);
-        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] START');
-
-        $ApiKey = $this->getToken($BotName);
-
-        try {
-            // Create Telegram API object
-            $this->telegram = new \Longman\TelegramBot\Telegram($ApiKey, $BotName);
-            // Enable MySQL
-            $this->telegram->enableMySql([
-                'host'     => env('DB_HOST'),
-                'port'     => env('DB_PORT'),
-                'user'     => env('DB_USERNAME'),
-                'database' => env('DB_DATABASE'),
-                'password' => env('DB_PASSWORD')
-            ])->useGetUpdatesWithoutDatabase(false);
-            // Get Telegram data set timeout $hold
-            $rs = $this->telegram->handleGetUpdates(null, $hold);
-            $time_end = microtime(true);
-            if ( ! isset($rs->ok) || $rs->ok !== true) {
-                $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] ERROR '.var_export($rs, true).' USED '.($time_end - $time_start) . ' s');
-                return false;
-            }
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] END '.var_export($rs, true).' USED '.($time_end - $time_start) . ' s');
-            return $rs;
-        } catch (\Longman\TelegramBot\Exception\TelegramException $e) {
-            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] ERROR '. var_export($e->getMessage(), true), true);
-        }
     }
 
     /**
@@ -1045,7 +1032,7 @@ class TelegramBotService
      * @param int $timeout
      * @return array
      */
-    public function readGetUpdates($BotName, $limit = 100, $timeout = 0) {
+    public function syncGetUpdates($BotName, $limit = 100, $timeout = 0) {
         $output = [];
         $worker = Cache::get('worker:'.$BotName);
         if ( ! empty($worker)) {

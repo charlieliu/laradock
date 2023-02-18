@@ -3,9 +3,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 class CallbackQuery extends Model
 {
     use HasFactory;
+
+    public static function logInfo($method = '', $info = '') {
+        $log = date('Y-m-d H:i:s') . ' ' .$method. ' '.$info;
+        Log::debug($log);
+    }
 
     public static function getOne($id = 0) {
         return DB::table('callback_query')->where('id', $id)->first();
@@ -19,6 +25,8 @@ class CallbackQuery extends Model
             }
         }
         $data['created_at'] = date('Y-m-d H:i:s');
-        return DB::table('callback_query')->insert($data);
+        $result = DB::table('callback_query')->insert($data);
+        self::logInfo(__METHOD__, 'LINE '.__LINE__.' data : ' . var_export($data, true).' result : ' . var_export($result, true));
+        return $result;
     }
 }

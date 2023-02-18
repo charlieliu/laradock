@@ -1,14 +1,17 @@
 <?php
-
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Facades\Log;
 class ConfigCoinNetwork extends Model
 {
     use HasFactory;
+
+    public static function logInfo($method = '', $info = '') {
+        $log = date('Y-m-d H:i:s') . ' ' .$method. ' '.$info;
+        Log::debug($log);
+    }
 
     public static function getListAll($condition=[]) {
         $table = DB::table('config_coin_network')

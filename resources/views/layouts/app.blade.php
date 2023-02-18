@@ -39,7 +39,43 @@
                 </a>
             </div>
             <div class="col-8 col-md-9 col-lg-10 .col-xl-11 bg-light container">
+                <div class="content_header">
+                    @if ( ! empty($breadcrumbs) && is_array($breadcrumbs))
+                    <div class="row">
+                        <div class="col breadcrumb flat">
+                            @foreach ($breadcrumbs as $name => $href)
+                            <a href="{{ $href }}">{{ $name }}</a>
+                            @endforeach
+                            <button class="btn" onclick="window.location.reload()">
+                                <span class="fa fa-undo"></span>
+                            </button>
+                            @if (count($breadcrumbs) > 1)
+                            <button class="btn" onclick="history.back()">
+                                <span class="fa fa-reply"></span>
+                            </button>
+                            @endif
+                            @if ($active == 'tg_bots')
+                            <button class="btn" onclick="window.location.href='/tg_bot/bot/0'">
+                                <span class="fa fa-plus-circle"></span>
+                            </button>
+                            @endif
+                            @if (in_array($active, ['coin','network','coin_network']))
+                            <button class="btn">
+                                <span class="fa fa-plus-circle"></span>
+                            </button>
+                            @endif
+                        </div>
+                    </div>
+                    @endif
+                    @if ( ! empty($columns) && is_array($columns))
+                    <div class="row row_th">
+                        @foreach ($columns as $column) <div class="col">{{$column}}</div> @endforeach
+                    </div>
+                    @endif
+                </div>
+                <div class="content_content">
                 @yield('content')
+                </div>
             </div>
         </div>
     </body>

@@ -3,10 +3,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 class User extends Model
 {
     use HasFactory;
 
+    public static function logInfo($method = '', $info = '') {
+        $log = date('Y-m-d H:i:s') . ' ' .$method. ' '.$info;
+        Log::debug($log);
+    }
 
     public static function getOne($id = 0) {
         return DB::table('user')->where('id', $id)->first();
@@ -38,10 +43,14 @@ class User extends Model
     }
 
     public static function insertData($data) {
-        return DB::table('user')->insert($data);
+        $result = DB::table('user')->insert($data);
+        self::logInfo(__METHOD__, 'LINE '.__LINE__.' data : ' . var_export($data, true).' result : ' . var_export($result, true));
+        return $result;
     }
 
-    public static function updateData($id,$data) {
-        return DB::table('user')->where('id', $id)->update($data);
+    public static function updateData($id, $data) {
+        $result = DB::table('user')->where('id', $id)->update($data);
+        self::logInfo(__METHOD__, 'LINE '.__LINE__.' id : ' . var_export($id, true).' data : ' . var_export($data, true).' result : ' . var_export($result, true));
+        return $result;
     }
 }
