@@ -150,9 +150,9 @@ class TelegramBotService
      * @return mix
      */
     public function setCache($key, $list = []) {
-        Cache::put($key.'s', $list);
+        Cache::put($key.'s', $list, 86400);
         foreach ($list as $row) {
-            Cache::put($key.':'.$row['id'], $row);
+            Cache::put($key.':'.$row['id'], $row, 86400);
         }
     }
 
@@ -271,9 +271,10 @@ class TelegramBotService
      * @param string    $error
      * @return string
      */
-    private function _cURL($action, $data=[]) {
+    private function _cURL($action, $data=[], $token='') {
         $time_start = microtime(true);
-        $url = 'https://api.telegram.org/bot'.$this->ApiKey.'/'.$action;
+        $token = empty($token) ? $this->ApiKey : $token;
+        $url = 'https://api.telegram.org/bot'.$token.'/'.$action;
         $logBody = ' url '.var_export($url, true).' data '.var_export($data, true);
         $query = http_build_query($data);
         $ch = curl_init();
@@ -284,11 +285,12 @@ class TelegramBotService
         curl_setopt($ch, CURLOPT_POSTFIELDS, $query);
         $output = curl_exec($ch);
         $error = curl_error($ch);
+        $errno = curl_errno($ch);
         $info = curl_getinfo($ch);
         curl_close($ch);
         if (empty($output)) {
             $logBody .= ' error '. var_export($error, true).' info '. var_export($info, true);
-            $output = ['ok' => false, 'curl_error_code' => curl_errno($ch), 'curl_error' => curl_error($ch)];
+            $output = ['ok' => false, 'curl_error_code' => $errno, 'curl_error' => $error];
         } else {
             $output = json_decode($output, true);
         }
@@ -303,7 +305,8 @@ class TelegramBotService
      * @return object $rs
      */
     public function sendMessage($input = []) {
-        return $this->_cURL('sendMessage', $input);
+        $response = $this->_cURL('sendMessage', $input);
+        return $response;
     }
 
     /**
@@ -378,10 +381,7 @@ class TelegramBotService
     * \return the JSON Telegram's reply.
     */
     public function getMe($token='') {
-        if ( ! empty($token)) {
-            $this->ApiKey = $token;
-        }
-        return $this->_cURL('getMe', [], false);
+        return $this->_cURL('getMe', [], $token);
     }
 
 
@@ -394,13 +394,13 @@ class TelegramBotService
      * @param array $input each row data
      * @return array $output
      */
-    public function parseResult($input) {
+    public function parseResult($input, $timeout = 0) {
         // $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' input : '.var_export($input, true));
         $this->cleanTmp();
         // $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' last_update_id : '.var_export($this->last_update_id, true));
         $output = [];
         foreach ((array)$input as $row) {
-            $tmp = $this->parseData((array)$row);
+            $tmp = $this->parseData((array)$row, $timeout);
             $output[] = $tmp;
         }
         foreach ($this->messages as $message) {
@@ -446,7 +446,7 @@ class TelegramBotService
      * @param array $input each row data
      * @return array $output
      */
-    public function parseData($input) {
+    public function parseData($input, $timeout = 0) {
         $this->input_data = $input;
         $type = $this->getUpdateType();
         $this->last_update_id = isset($input['update_id']) ? (int) $input['update_id'] : 0;
@@ -496,6 +496,8 @@ class TelegramBotService
         $this->logInfo(__METHOD__, 'LINE : '.__LINE__.' '.$type.' tmp : ' . var_export($tmp, true));
         $model = new TelegramUpdate();
         $model::insertData($this->output_data, $this->userID);
+        $this->bot['done'] += 1;
+        Cache::put('worker:'.$this->bot['username'], $this->bot, $timeout+3);
         return $this->output_data;
     }
 
@@ -1011,9 +1013,14 @@ class TelegramBotService
             exit;
         }
         $this->bot = is_null($bots[$BotName]) ? [] : $bots[$BotName];
-        $this->bot['startAt'] = date('Y-m-d H:i:s');
+        if (empty($this->bot['start_at'])) {
+            $this->bot['start_at'] = date('Y-m-d H:i:s');
+        }
+        if (empty($this->bot['done'])) {
+            $this->bot['done'] = 0;
+        }
         $this->BotName = $BotName;
-        $this->logHead = ' ['.$BotName.'] - '.$this->bot['startAt'];
+        $this->logHead = ' ['.$BotName.'] - '.$this->bot['start_at'];
         if ( ! empty($this->bot['last_update_id'])) {
             $this->last_update_id = (int) $this->bot['last_update_id'];
         } else {
@@ -1042,18 +1049,18 @@ class TelegramBotService
         $time_start = microtime(true);
         $this->logInfo(__METHOD__, 'LINE '.__LINE__.' ['.$BotName.'] START');
         $this->getToken($BotName);
-        Cache::put('worker:'.$BotName, json_encode($this->bot), $timeout+3);
+        Cache::put('worker:'.$BotName, $this->bot, $timeout+3);
         $response = $this->getUpdates($this->last_update_id, $limit, $timeout);
         $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' response '.var_export($response, true));
         $result = ! empty($response['result']) ? (array) $response['result'] : [];
         if ( ! empty($result)) {
-            $list = $this->parseResult($result);
+            $list = $this->parseResult($result, $timeout);
             $output += $list;
             // update telegram last_update_id
             $response = $this->getUpdates($this->last_update_id+1, 1, 0);
             $result = ! empty($response['result']) ? (array) $response['result'] : [];
             if ( ! empty($result)) {
-                $list = $this->parseResult($result);
+                $list = $this->parseResult($result, $timeout);
                 $output += $list;
             }
         }
@@ -1101,8 +1108,8 @@ class TelegramBotService
         if ( ! empty($text) && ! empty($message['chat_id'])) {
             if (strpos($text, 'are you bot') !== false || strpos($text, 'who is bot') !== false) {
                 $message_text = 'Yes, @' . $this->BotName . ' is a bot.';
-                if ( ! empty($this->bot['startAt'])) {
-                    $message_text .= ' Created at ' . $this->bot['startAt'];
+                if ( ! empty($this->bot['start_at'])) {
+                    $message_text .= ' Created at ' . $this->bot['start_at'];
                 }
                 $this->sendMessage([
                     'chat_id'   => $message['chat_id'],

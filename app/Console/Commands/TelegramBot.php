@@ -48,8 +48,7 @@ class TelegramBot extends Command
             foreach ($bots as $bot) {
                 $worker = Cache::get('worker:'.$bot['username']);
                 if (empty($worker)) {
-                    $bot['startAt'] = date('Y-m-d H:i:s');
-                    $bot['done'] = 0;
+                    $bot['start_at'] = date('Y-m-d H:i:s');
                     dispatch(new TelegramBotGetUpdate($bot));
                     $this->service->logInfo(__METHOD__, 'LINE '.__LINE__.' ADD bot : ' . var_export($bot, true), true);
                 }

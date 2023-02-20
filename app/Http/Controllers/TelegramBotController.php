@@ -29,9 +29,19 @@ class TelegramBotController extends Controller
             'first_name'    => 'First Name',
             'last_name'     => 'Last Name',
             'last_update_id'=> 'Last Update ID',
+            'start_at'      => 'Start at',
+            'done'          => 'Done',
             'operations'    => 'Operations'
         ];
+        Cache::forget('bots');
         $result = $this->service->bots();
+        foreach ($result as $key => $bot) {
+            $worker = Cache::get('worker:'.$bot['username']);
+            $worker = empty($worker) ? [] : $worker;
+            $worker = is_array($worker) ? $worker : json_decode($worker, true);
+            $result[$key]['start_at'] = isset($worker['start_at']) ? $worker['start_at'] : '--';
+            $result[$key]['done'] = isset($worker['done']) ? $worker['done'] : '--';
+        }
         $buttons = [
             'tg_bot_edit'   => 'id',
             'tg_detail'     => 'username',
@@ -57,7 +67,7 @@ class TelegramBotController extends Controller
         if ( ! empty($id) && is_numeric($id)) {
             $model = new TelegramBots();
             $bot = (array) $model::getOneById($id);
-            if (empty($bot['user_id'])) {
+            if (empty($bot['user_id']) && ! empty($bot['api_key'])) {
                 $explode = explode(':', $bot['api_key']);
                 $bot['user_id'] = (int) $explode[0];
             }
@@ -81,11 +91,11 @@ class TelegramBotController extends Controller
         }
         return view('content_edit', [
             'active'        => 'tg_bots_edit',
-            'form_action'   => '/tg_bot/bot/'.$bot['id'],
+            'form_action'   => '/tg_bot/bot/'.$id,
             'title'         => $title,
             'breadcrumbs'   => [
                 'Telegram Bots' => '/tg_bot',
-                $title          => '/tg_bot/bot/'.$bot['id']
+                $title          => '/tg_bot/bot/'.$id
             ],
             'detail'        => $columns
         ]);
@@ -96,7 +106,7 @@ class TelegramBotController extends Controller
      * @param int $id Bot ID
      * @return string
      */
-    public function botEdit($bot_id, Request $request) {
+    public function botEdit($bot_id=0, Request $request) {
         $userModel = new User();
         $botModel = new TelegramBots();
         $token = $request->post('api_key');
@@ -176,7 +186,11 @@ class TelegramBotController extends Controller
                     ]);
                 }
                 Cache::forget('bots');
-                $breadcrumbs['Success'] = '/tg_bot';
+                $breadcrumbs = [
+                    'Telegram Bots' => '/tg_bot',
+                    $title          => '/tg_bot/bot/'.$bot_id,
+                    'Success'       => '/tg_bot/bot/'.$bot_id,
+                ];
                 return view('content_p', [
                     'active'        => 'tg_bots_edit',
                     'title'         => 'Create Bot '.$user['username'],
@@ -189,7 +203,11 @@ class TelegramBotController extends Controller
             $bot_id = (int) $exist['id'];
             $result = $botModel::updateData($exist['id'], $bot);
             if (empty($result)) {
-                $breadcrumbs['Error'] = '/tg_bot';
+                $breadcrumbs = [
+                    'Telegram Bots' => '/tg_bot',
+                    $title          => '/tg_bot/bot/'.$bot_id,
+                    'Error'         => '/tg_bot',
+                ];
                 return view('content_p', [
                     'active'        => 'tg_bots_edit',
                     'title'         => 'Update Bot '.$user['username'],
@@ -212,7 +230,11 @@ class TelegramBotController extends Controller
             $bot_id = (int) $exist['id'];
             $result = $botModel::updateData($exist['id'], $bot);
             if (empty($result)) {
-                $breadcrumbs['Error'] = '/tg_bot';
+                $breadcrumbs = [
+                    'Telegram Bots' => '/tg_bot',
+                    $title          => '/tg_bot/bot/'.$bot_id,
+                    'Error'         => '/tg_bot',
+                ];
                 return view('content_p', [
                     'active'        => 'tg_bots_edit',
                     'title'         => $title,
@@ -222,7 +244,11 @@ class TelegramBotController extends Controller
             }
             Cache::forget('bots');
             Cache::forget('bot:'.$bot_id);
-            $breadcrumbs['Success'] = '/tg_bot';
+            $breadcrumbs = [
+                'Telegram Bots' => '/tg_bot',
+                $title          => '/tg_bot/bot/'.$bot_id,
+                'Success'       => '/tg_bot/bot/'.$bot_id,
+            ];
             return view('content_p', [
                 'active'        => 'tg_bots_edit',
                 'title'         => 'Update Bot '.$user['username'],
@@ -230,7 +256,11 @@ class TelegramBotController extends Controller
                 'content'       => 'Update bot('.$bot_id.') username:'.$user['username']
             ]);
         }
-        $breadcrumbs['Error'] = '/tg_bot';
+        $breadcrumbs = [
+            'Telegram Bots' => '/tg_bot',
+            $title          => '/tg_bot/bot/'.$bot_id,
+            'Error'         => '/tg_bot',
+        ];
         return view('content_p', [
             'active'        => 'tg_bots_edit',
             'title'         => 'Update Bot '.$user['username'],
