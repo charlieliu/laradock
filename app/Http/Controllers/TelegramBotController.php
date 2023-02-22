@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Chat;
 use App\Models\User;
 use App\Models\TelegramBots;
+use App\Models\Message;
+use App\Models\MessageHistory;
 use App\Services\TelegramBotService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -343,6 +345,76 @@ class TelegramBotController extends Controller
             'breadcrumbs'   => [
                 'Telegram Chats'=> '/tg_bot/chats',
                 $tab            => '/tg_bot/chat_messages/'.$id
+            ],
+            'columns'       => $columns,
+            'list'          => $this->parse_list($result, $columns)
+        ]);
+    }
+
+        /**
+     * Get chat messages List from Mysql
+     * @return string
+     */
+    public function chatMessageHistory($message_id) {
+        $messageModel = new Message();
+        $title = 'Telegram Chat Messages History';
+        $breadcrumbs = [
+            'Telegram Chats'    => '/tg_bot/chats',
+            'Messages'          => '/tg_bot/chats',
+            'History'           => '/tg_bot/chats'
+        ];
+        $message = (array) $messageModel::getOne($message_id);
+        if (empty($message)) {
+            return view('content_p', [
+                'active'        => 'tg_chats',
+                'title'         => $title.' Error',
+                'breadcrumbs'   => $breadcrumbs,
+                'content'       => 'Can not find message'
+            ]);
+        }
+        $chatModel = new Chat();
+        $chat = $chatModel::getOne($message['chat_id']);
+        if (empty($chat)) {
+            return view('content_p', [
+                'active'        => 'tg_chats',
+                'title'         => $title.' Error',
+                'breadcrumbs'   => $breadcrumbs,
+                'content'       => 'Can not find chat'
+            ]);
+        }
+        $tab = '';
+        if ($chat->type == 'private') {
+            if ( ! empty($chat->first_name)) {
+                $tab .= $chat->first_name;
+            }
+            if ( ! empty($chat->last_name)) {
+                $tab .= $chat->last_name;
+            }
+        } else {
+            $tab .= $chat->title;
+        }
+        $tab .= ' Messages';
+        $breadcrumbs = [
+            'Telegram Chats'    => '/tg_bot/chats',
+            $tab                => '/tg_bot/chat_messages/'.$chat->id,
+            'History'           => '/tg_bot/chats'
+        ];
+        $historyModel = new MessageHistory();
+        $result = $historyModel::getListAll($message_id);
+        $columns = [
+            'id'        => 'ID',
+            'date'      => 'Date',
+            'from'      => 'From',
+            'bot'       => 'Is Bot',
+            'text'      => 'Text',
+        ];
+        return view('content_list', [
+            'active'        => 'tg_chats',
+            'title'         => 'Telegram Chat Messages',
+            'breadcrumbs'   => [
+                'Telegram Chats'    => '/tg_bot/chats',
+                $tab                => '/tg_bot/chat_messages/'.$chat->id,
+                'History'           => '/tg_bot/chat_messages/'.$message_id,
             ],
             'columns'       => $columns,
             'list'          => $this->parse_list($result, $columns)

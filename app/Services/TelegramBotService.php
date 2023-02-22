@@ -7,6 +7,7 @@ use Longman\TelegramBot\Telegram;
 
 use App\Models\TelegramBots;
 use App\Models\Message;
+use App\Models\MessageHistory;
 use App\Models\User;
 use App\Models\Chat;
 use App\Models\UserChat;
@@ -260,6 +261,62 @@ class TelegramBotService
         return $result;
     }
 
+    public function insertMessage($input) {
+        $data = [
+            'id'        => (int) $input['message_id'],
+            'user_id'   => (int) $input['from']['id'],
+            'chat_id'   => (int) $input['chat']['id'],
+        ];
+        if ( ! empty($input['date'])) {
+            $data['date'] = date('Y-m-d H:i:s', (int) $input['date']);
+        }
+        if ( ! empty($input['edit_date'])) {
+            $data['edit_date'] = date('Y-m-d H:i:s', (int) $input['edit_date']);
+        }
+        if ( ! empty($input['text'])) {
+            $data['text'] = $input['text'];
+        }
+        if ( ! empty($input['entities'])) {
+            $data['entities'] = json_encode($input['entities']);
+        }
+        if ( ! empty($input['reply_markup'])) {
+            $data['reply_markup'] = json_encode($input['reply_markup']);
+        }
+        $model = new Message();
+        $result = $model::insertData($data);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' data '.var_export($data, true).' result '.var_export($result, true));
+        return $result;
+    }
+
+    public function insertMessageHistory($input) {
+        $data = [
+            'message_id'    => (int) $input['message_id'],
+            'user_id'       => (int) $input['from']['id'],
+            'chat_id'       => (int) $input['chat']['id'],
+            'created_at'    => date('Y-m-d H:i:s'),
+            'updated_at'    => date('Y-m-d H:i:s')
+        ];
+        if ( ! empty($input['date'])) {
+            $data['date'] = date('Y-m-d H:i:s', (int) $input['date']);
+        }
+        if ( ! empty($input['edit_date'])) {
+            $data['date'] = date('Y-m-d H:i:s', (int) $input['edit_date']);
+        }
+        if ( ! empty($input['text'])) {
+            $data['text'] = $input['text'];
+        }
+        if ( ! empty($input['entities'])) {
+            $data['entities'] = json_encode($input['entities']);
+        }
+        if ( ! empty($input['reply_markup'])) {
+            $data['reply_markup'] = json_encode($input['reply_markup']);
+        }
+        $model = new MessageHistory();
+        $result = $model::insertData($data);
+        $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' data '.var_export($data, true).' result '.var_export($result, true));
+        return $result;
+    }
+
     // ===================== DB END ===================== //
 
     // ===================== cURL telegram api START ===================== //
@@ -306,6 +363,15 @@ class TelegramBotService
      */
     public function sendMessage($input = []) {
         $response = $this->_cURL('sendMessage', $input);
+        if ($response['ok'] === true
+            && ! empty($response['result'])
+            && ! empty($response['result']['message_id'])
+        ) {
+            $this->insertMessageHistory($response['result']);
+            $this->insertMessage($response['result']);
+        } else {
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' response '.var_export($response, true));
+        }
         return $response;
     }
 
@@ -315,7 +381,16 @@ class TelegramBotService
      * @return object $rs
      */
     public function editMessageText($input = []) {
-        return $this->_cURL('editMessageText', $input);
+        $response = $this->_cURL('editMessageText', $input);
+        if ($response['ok'] === true
+            && ! empty($response['result'])
+            && ! empty($response['result']['message_id'])
+        ) {
+            $this->insertMessageHistory($response['result']);
+        } else {
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' response '.var_export($response, true));
+        }
+        return $response;
     }
 
     /**
@@ -324,7 +399,16 @@ class TelegramBotService
      * @return object $rs
      */
     public function editMessageReplyMarkup($input = []) {
-        return $this->_cURL('editMessageReplyMarkup', $input);
+        $response = $this->_cURL('editMessageReplyMarkup', $input);
+        if ($response['ok'] === true
+            && ! empty($response['result'])
+            && ! empty($response['result']['message_id'])
+        ) {
+            $this->insertMessageHistory($response['result']);
+        } else {
+            $this->logInfo(__METHOD__, 'LINE '.__LINE__.' '.$this->logHead.' response '.var_export($response, true));
+        }
+        return $response;
     }
 
     /**
@@ -837,7 +921,8 @@ class TelegramBotService
                 'chat_name'         => isset($chat['title']) ? $chat['title'] : '',
                 'message_id'        => (int) $message['message_id'],
                 'message_text'      => isset($message['text']) ? $message['text'] : '',
-                'from'              => '',
+                'from'              => $user,
+                'chat'              => $chat,
                 'member_id'         => (int) $member['id'],
                 'bot_name'          => $this->BotName
             ];
@@ -865,6 +950,7 @@ class TelegramBotService
             }
             if ($type == self::MESSAGE || $type == self::EDITED_MESSAGE) {
                 $this->messages[$output['id']] = $output;
+                $this->insertMessageHistory($output);
             }
             $model = new Message();
             $result = $model::replaceData($output);
